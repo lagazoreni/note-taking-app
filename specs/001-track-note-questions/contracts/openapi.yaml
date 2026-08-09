@@ -1,0 +1,1113 @@
+openapi: 3.1.0
+info:
+  title: Interactive Note Questions API
+  version: 1.0.0
+  description: >-
+    Authoritative local API for workspaces, notes, shared questions, organization,
+    search, reminders, safe deletion, and portable import/export. All timestamps
+    are RFC 3339 UTC unless a schema explicitly uses a calendar date.
+servers:
+  - url: /
+    description: Same-origin local application
+security: []
+tags:
+  - name: Health
+  - name: Workspaces
+  - name: Topics
+  - name: Tags
+  - name: Notes
+  - name: Questions
+  - name: Search
+  - name: Data portability
+paths:
+  /healthz:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      responses:
+        '200':
+          description: Process is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      tags: [Health]
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Migrations completed and storage is available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/workspaces:
+    get:
+      tags: [Workspaces]
+      operationId: listWorkspaces
+      responses:
+        '200':
+          description: All workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Workspace' }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Workspaces]
+      operationId: createWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '201':
+          description: Workspace created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/workspaces/{workspaceId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Workspaces]
+      operationId: getWorkspace
+      responses:
+        '200':
+          description: Workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Error' }
+    put:
+      tags: [Workspaces]
+      operationId: updateWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, version]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                version: { $ref: '#/components/schemas/Version' }
+      responses:
+        '200':
+          description: Updated workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/topics:
+    get:
+      tags: [Topics]
+      operationId: listTopics
+      parameters:
+        - $ref: '#/components/parameters/RequiredWorkspaceQuery'
+      responses:
+        '200':
+          description: Topics in workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Topic' }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Topics]
+      operationId: createTopic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workspaceId, name]
+              properties:
+                workspaceId: { $ref: '#/components/schemas/Id' }
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '201':
+          description: Topic created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Topic' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/topics/{topicId}:
+    parameters:
+      - name: topicId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Id' }
+    put:
+      tags: [Topics]
+      operationId: updateTopic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, version]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                version: { $ref: '#/components/schemas/Version' }
+      responses:
+        '200':
+          description: Updated topic
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Topic' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Topics]
+      operationId: deleteTopic
+      parameters:
+        - $ref: '#/components/parameters/IfVersion'
+      responses:
+        '204': { description: Topic deleted and note assignments cleared }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/tags:
+    get:
+      tags: [Tags]
+      operationId: listTags
+      parameters:
+        - $ref: '#/components/parameters/RequiredWorkspaceQuery'
+        - name: includeShared
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Owned and available tags
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Tag' }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Tags]
+      operationId: createTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ownerWorkspaceId, name]
+              properties:
+                ownerWorkspaceId: { $ref: '#/components/schemas/Id' }
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '201':
+          description: Tag created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tags/{tagId}:
+    parameters:
+      - name: tagId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Id' }
+    put:
+      tags: [Tags]
+      operationId: updateTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, version]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                version: { $ref: '#/components/schemas/Version' }
+      responses:
+        '200':
+          description: Updated tag
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/tags/{tagId}/workspace-access:
+    parameters:
+      - name: tagId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Id' }
+    put:
+      tags: [Tags]
+      operationId: setTagWorkspaceAccess
+      description: Replaces the explicit non-owner workspace access set.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workspaceIds, version, removalDecisions]
+              properties:
+                workspaceIds:
+                  type: array
+                  uniqueItems: true
+                  items: { $ref: '#/components/schemas/Id' }
+                version: { $ref: '#/components/schemas/Version' }
+                removalDecisions:
+                  type: array
+                  description: Required for assignments made inaccessible by this update.
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [workspaceId, removeAssignments]
+                    properties:
+                      workspaceId: { $ref: '#/components/schemas/Id' }
+                      removeAssignments: { type: boolean }
+      responses:
+        '200':
+          description: Updated tag with access list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/notes:
+    get:
+      tags: [Notes]
+      operationId: listNotes
+      parameters:
+        - $ref: '#/components/parameters/RequiredWorkspaceQuery'
+        - name: parentNoteId
+          in: query
+          description: Omit for all notes; use literal `root` for root notes.
+          schema: { type: string }
+        - name: topicId
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Notes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotePage' }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Notes]
+      operationId: createNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NoteWrite' }
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Note' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/notes/{noteId}:
+    parameters:
+      - $ref: '#/components/parameters/NoteId'
+    get:
+      tags: [Notes]
+      operationId: getNote
+      responses:
+        '200':
+          description: Note with linked question summaries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Note' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Error' }
+    put:
+      tags: [Notes]
+      operationId: updateNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/NoteWrite'
+                - type: object
+                  required: [version]
+                  properties:
+                    version: { $ref: '#/components/schemas/Version' }
+      responses:
+        '200':
+          description: Updated note and links
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Note' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/notes/{noteId}/deletion-preview:
+    parameters:
+      - $ref: '#/components/parameters/NoteId'
+    post:
+      tags: [Notes]
+      operationId: previewNoteDeletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version]
+              properties:
+                version: { $ref: '#/components/schemas/Version' }
+      responses:
+        '200':
+          description: Current impact and short-lived preview token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeletionPreview' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/notes/{noteId}/delete:
+    parameters:
+      - $ref: '#/components/parameters/NoteId'
+    post:
+      tags: [Notes]
+      operationId: executeNoteDeletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeleteNoteCommand' }
+      responses:
+        '204': { description: Reviewed deletion committed atomically }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/questions:
+    get:
+      tags: [Questions]
+      operationId: listQuestions
+      parameters:
+        - $ref: '#/components/parameters/RequiredWorkspaceQuery'
+        - name: status
+          in: query
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/QuestionStatus' }
+          explode: false
+        - name: topicId
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: tagId
+          in: query
+          schema: { $ref: '#/components/schemas/Id' }
+        - name: createdFrom
+          in: query
+          schema: { type: string, format: date-time }
+        - name: createdTo
+          in: query
+          schema: { type: string, format: date-time }
+        - name: updatedFrom
+          in: query
+          schema: { type: string, format: date-time }
+        - name: updatedTo
+          in: query
+          schema: { type: string, format: date-time }
+        - name: dueFrom
+          in: query
+          schema: { type: string, format: date }
+        - name: dueTo
+          in: query
+          schema: { type: string, format: date }
+        - name: hasAnswer
+          in: query
+          schema: { type: boolean }
+        - name: hasLinkedNotes
+          in: query
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, dueDate, priority, questionText, status]
+            default: updatedAt
+        - name: direction
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Filtered question page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuestionPage' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Questions]
+      operationId: createQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuestionWrite' }
+      responses:
+        '201':
+          description: Question created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Question' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/questions/{questionId}:
+    parameters:
+      - $ref: '#/components/parameters/QuestionId'
+    get:
+      tags: [Questions]
+      operationId: getQuestion
+      responses:
+        '200':
+          description: Canonical question with links
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Question' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Error' }
+    put:
+      tags: [Questions]
+      operationId: updateQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/QuestionWrite'
+                - type: object
+                  required: [version]
+                  properties:
+                    version: { $ref: '#/components/schemas/Version' }
+      responses:
+        '200':
+          description: Updated canonical question
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Question' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/search:
+    get:
+      tags: [Search]
+      operationId: search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 500 }
+        - name: contentScope
+          in: query
+          required: true
+          schema: { type: string, enum: [notes, questions, answers, everything] }
+        - name: workspaceScope
+          in: query
+          required: true
+          schema: { type: string, enum: [current, all] }
+        - name: workspaceId
+          in: query
+          description: Required when workspaceScope is current.
+          schema: { $ref: '#/components/schemas/Id' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Ranked search results
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchPage' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+
+  /api/v1/export:
+    post:
+      tags: [Data portability]
+      operationId: exportAllData
+      responses:
+        '200':
+          description: Complete versioned export ZIP
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/zip:
+              schema: { type: string, contentEncoding: binary }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/imports/validate:
+    post:
+      tags: [Data portability]
+      operationId: validateImport
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [archive]
+              properties:
+                archive:
+                  type: string
+                  contentMediaType: application/zip
+                  contentEncoding: binary
+      responses:
+        '200':
+          description: Valid import preview with any conflicts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportPreview' }
+        '413':
+          description: Archive exceeds configured limit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/imports/{importId}/apply:
+    parameters:
+      - $ref: '#/components/parameters/ImportId'
+    post:
+      tags: [Data portability]
+      operationId: applyImport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [conflictResolutions]
+              properties:
+                conflictResolutions:
+                  type: array
+                  items: { $ref: '#/components/schemas/ConflictResolution' }
+      responses:
+        '200':
+          description: Import committed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [importId, state, appliedCounts]
+                properties:
+                  importId: { $ref: '#/components/schemas/Id' }
+                  state: { type: string, const: applied }
+                  appliedCounts:
+                    type: object
+                    additionalProperties: { type: integer, minimum: 0 }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/imports/{importId}:
+    parameters:
+      - $ref: '#/components/parameters/ImportId'
+    delete:
+      tags: [Data portability]
+      operationId: cancelImport
+      responses:
+        '204': { description: Staged import removed or marked cancelled }
+        '404': { $ref: '#/components/responses/NotFound' }
+        default: { $ref: '#/components/responses/Error' }
+
+components:
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    RequiredWorkspaceQuery:
+      name: workspaceId
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    NoteId:
+      name: noteId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    QuestionId:
+      name: questionId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    ImportId:
+      name: importId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Id' }
+    IfVersion:
+      name: version
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/Version' }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string, minLength: 1, maxLength: 1000 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+  responses:
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ValidationError:
+      description: Input failed validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: Version, uniqueness, or state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServiceUnavailable:
+      description: Service is not ready
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    Id:
+      type: string
+      format: uuid
+      pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+    Version:
+      type: integer
+      minimum: 1
+    Timestamp:
+      type: string
+      format: date-time
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+        version: { type: string }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_FAILED
+                - NOT_FOUND
+                - VERSION_CONFLICT
+                - NAME_CONFLICT
+                - INVALID_STATE_TRANSITION
+                - DELETION_PREVIEW_STALE
+                - IMPORT_INVALID
+                - IMPORT_EXPIRED
+                - PAYLOAD_TOO_LARGE
+                - SERVICE_UNAVAILABLE
+                - INTERNAL_ERROR
+            message: { type: string }
+            requestId: { type: string }
+            fieldErrors:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+            details:
+              type: object
+              additionalProperties: true
+    Workspace:
+      type: object
+      additionalProperties: false
+      required: [id, name, createdAt, updatedAt, version]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    Topic:
+      type: object
+      additionalProperties: false
+      required: [id, workspaceId, name, createdAt, updatedAt, version]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        workspaceId: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, ownerWorkspaceId, name, availableWorkspaceIds, createdAt, updatedAt, version]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        ownerWorkspaceId: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        availableWorkspaceIds:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Id' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    DisplayMode:
+      type: string
+      enum: [expanded, collapsed, link]
+    NoteQuestionLinkWrite:
+      type: object
+      additionalProperties: false
+      required: [questionId, displayMode, position]
+      properties:
+        questionId: { $ref: '#/components/schemas/Id' }
+        displayMode: { $ref: '#/components/schemas/DisplayMode' }
+        position: { type: integer, minimum: 0 }
+    NoteQuestionLink:
+      allOf:
+        - $ref: '#/components/schemas/NoteQuestionLinkWrite'
+        - type: object
+          required: [question]
+          properties:
+            question: { $ref: '#/components/schemas/QuestionSummary' }
+    NoteWrite:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, title, bodyMarkdown, questionLinks, tagIds]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/Id' }
+        topicId:
+          oneOf:
+            - { $ref: '#/components/schemas/Id' }
+            - { type: 'null' }
+        parentNoteId:
+          oneOf:
+            - { $ref: '#/components/schemas/Id' }
+            - { type: 'null' }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        bodyMarkdown: { type: string, maxLength: 5000000 }
+        questionLinks:
+          type: array
+          items: { $ref: '#/components/schemas/NoteQuestionLinkWrite' }
+        tagIds:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Id' }
+    Note:
+      allOf:
+        - $ref: '#/components/schemas/NoteWrite'
+        - type: object
+          required: [id, createdAt, updatedAt, version]
+          properties:
+            id: { $ref: '#/components/schemas/Id' }
+            questionLinks:
+              type: array
+              items: { $ref: '#/components/schemas/NoteQuestionLink' }
+            createdAt: { $ref: '#/components/schemas/Timestamp' }
+            updatedAt: { $ref: '#/components/schemas/Timestamp' }
+            version: { $ref: '#/components/schemas/Version' }
+    NotePage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Note' }
+        nextCursor:
+          oneOf: [{ type: string }, { type: 'null' }]
+    QuestionStatus:
+      type: string
+      enum: [unanswered, in_progress, deferred, answered]
+    Priority:
+      type: string
+      enum: [none, low, medium, high, urgent]
+    ReminderWrite:
+      oneOf:
+        - type: 'null'
+        - type: object
+          additionalProperties: false
+          required: [scheduledAt]
+          properties:
+            scheduledAt: { $ref: '#/components/schemas/Timestamp' }
+    Reminder:
+      type: object
+      additionalProperties: false
+      required: [id, scheduledAt, state, createdAt, updatedAt, version]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        scheduledAt: { $ref: '#/components/schemas/Timestamp' }
+        state: { type: string, enum: [pending, delivered, missed, dismissed] }
+        lastEvaluatedAt:
+          oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }]
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    QuestionWrite:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, questionText, status, priority, tagIds]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/Id' }
+        questionText: { type: string, minLength: 1, maxLength: 10000 }
+        answerMarkdown:
+          oneOf: [{ type: string, minLength: 1, maxLength: 5000000 }, { type: 'null' }]
+        status: { $ref: '#/components/schemas/QuestionStatus' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        dueDate:
+          oneOf: [{ type: string, format: date }, { type: 'null' }]
+        reminder: { $ref: '#/components/schemas/ReminderWrite' }
+        tagIds:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Id' }
+    LinkedNoteSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, displayMode]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        displayMode: { $ref: '#/components/schemas/DisplayMode' }
+    QuestionSummary:
+      type: object
+      additionalProperties: false
+      required: [id, workspaceId, questionText, status, priority, version]
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        workspaceId: { $ref: '#/components/schemas/Id' }
+        questionText: { type: string }
+        status: { $ref: '#/components/schemas/QuestionStatus' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        dueDate:
+          oneOf: [{ type: string, format: date }, { type: 'null' }]
+        version: { $ref: '#/components/schemas/Version' }
+    Question:
+      allOf:
+        - $ref: '#/components/schemas/QuestionWrite'
+        - type: object
+          required: [id, linkedNotes, createdAt, updatedAt, version]
+          properties:
+            id: { $ref: '#/components/schemas/Id' }
+            reminder:
+              oneOf: [{ $ref: '#/components/schemas/Reminder' }, { type: 'null' }]
+            linkedNotes:
+              type: array
+              items: { $ref: '#/components/schemas/LinkedNoteSummary' }
+            createdAt: { $ref: '#/components/schemas/Timestamp' }
+            updatedAt: { $ref: '#/components/schemas/Timestamp' }
+            version: { $ref: '#/components/schemas/Version' }
+    QuestionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Question' }
+        nextCursor:
+          oneOf: [{ type: string }, { type: 'null' }]
+    ChildDeletionDecision:
+      type: object
+      additionalProperties: false
+      required: [childNoteId, action]
+      properties:
+        childNoteId: { $ref: '#/components/schemas/Id' }
+        action: { type: string, enum: [make_root, move_to_parent, delete_with_review] }
+        nestedPreviewToken:
+          description: Required when action is delete_with_review.
+          type: string
+    DeletionPreview:
+      type: object
+      additionalProperties: false
+      required: [previewToken, expiresAt, noteId, noteVersion, singlyLinkedQuestions, multiplyLinkedQuestions, childNotes]
+      properties:
+        previewToken: { type: string }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        noteId: { $ref: '#/components/schemas/Id' }
+        noteVersion: { $ref: '#/components/schemas/Version' }
+        singlyLinkedQuestions:
+          type: array
+          items: { $ref: '#/components/schemas/QuestionSummary' }
+        multiplyLinkedQuestions:
+          type: array
+          items: { $ref: '#/components/schemas/QuestionSummary' }
+        childNotes:
+          type: array
+          items:
+            type: object
+            required: [id, title, version]
+            properties:
+              id: { $ref: '#/components/schemas/Id' }
+              title: { type: string }
+              version: { $ref: '#/components/schemas/Version' }
+    DeleteNoteCommand:
+      type: object
+      additionalProperties: false
+      required: [previewToken, version, questionDecisions, childDecisions]
+      properties:
+        previewToken: { type: string }
+        version: { $ref: '#/components/schemas/Version' }
+        questionDecisions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [questionId, action]
+            properties:
+              questionId: { $ref: '#/components/schemas/Id' }
+              action: { type: string, enum: [keep_unlinked, delete] }
+        childDecisions:
+          type: array
+          items: { $ref: '#/components/schemas/ChildDeletionDecision' }
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required: [type, id, workspaceId, workspaceName, snippet, destination]
+      properties:
+        type: { type: string, enum: [note, question, answer] }
+        id: { $ref: '#/components/schemas/Id' }
+        workspaceId: { $ref: '#/components/schemas/Id' }
+        workspaceName: { type: string }
+        title: { type: string }
+        snippet: { type: string, description: Plain text with no trusted HTML }
+        destination: { type: string, pattern: '^/' }
+    SearchPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SearchResult' }
+        nextCursor:
+          oneOf: [{ type: string }, { type: 'null' }]
+    ImportConflict:
+      type: object
+      additionalProperties: false
+      required: [conflictId, entityType, entityId, reason, allowedResolutions]
+      properties:
+        conflictId: { $ref: '#/components/schemas/Id' }
+        entityType:
+          type: string
+          enum: [workspace, topic, note, question, noteQuestion, tag, tagWorkspaceAccess, noteTag, questionTag, reminder]
+        entityId: { $ref: '#/components/schemas/Id' }
+        reason: { type: string, enum: [different_content, missing_dependency, name_collision, newer_existing] }
+        existingVersion: { type: [integer, 'null'], minimum: 1 }
+        importedVersion: { type: [integer, 'null'], minimum: 1 }
+        allowedResolutions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [keep_existing, use_imported] }
+    ImportPreview:
+      type: object
+      additionalProperties: false
+      required: [importId, expiresAt, formatVersion, archiveSha256, counts, conflicts]
+      properties:
+        importId: { $ref: '#/components/schemas/Id' }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        formatVersion: { type: integer, const: 1 }
+        archiveSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        counts:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        conflicts:
+          type: array
+          items: { $ref: '#/components/schemas/ImportConflict' }
+    ConflictResolution:
+      type: object
+      additionalProperties: false
+      required: [conflictId, resolution]
+      properties:
+        conflictId: { $ref: '#/components/schemas/Id' }
+        resolution: { type: string, enum: [keep_existing, use_imported] }
