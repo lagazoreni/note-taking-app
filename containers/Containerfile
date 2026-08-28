@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+FROM node:24.18.0-bookworm-slim@sha256:d45d78e7929b46875bbd4e29bea672d5bc48186c6c3588306521c815e78352d6 AS web-build
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run check && npm run build
+
+FROM golang:1.26.5-bookworm@sha256:db25d241820546be7b96953eea8d3e6bd15d413d59d00a75b68b74dfb5e2ecd2 AS server-build
+WORKDIR /src/server
+COPY server/go.mod server/go.sum* ./
+RUN go mod download
+COPY server/ ./
+COPY --from=web-build /src/web/build ./webdist
+RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/noted ./cmd/noted
+RUN mkdir -p /out/data && touch /out/data/.keep
+
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:7a2bd171a18bdd39a4729600d0dca5f16e779d41156a6908b4f8a9a289e76d92
+COPY --from=server-build /out/noted /noted
+COPY --from=web-build /src/web/build /webdist
+COPY --from=server-build --chown=nonroot:nonroot /out/data/.keep /data/.keep
+ENV NOTED_ADDR=0.0.0.0:8080 \
+    NOTED_DATA_DIR=/data \
+    NOTED_DB_FILE=notes.db \
+    NOTED_LOG_LEVEL=info
+VOLUME ["/data"]
+EXPOSE 8080
+USER nonroot:nonroot
+ENTRYPOINT ["/noted"]

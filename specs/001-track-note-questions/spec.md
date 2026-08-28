@@ -12,18 +12,19 @@
 
 ### User Story 1 - Capture and Track Questions (Priority: P1)
 
-While reading or taking notes, a user creates one or more questions inside a note. Each question also appears in the workspace's central active Questions view, so the user can find outstanding work without revisiting every note.
+While reading or taking notes, a user creates one or more notes and can attach a question or annotation to a selected passage. Notes appear in the workspace's Notes index, highlighted passages open cards, and questions remain available from the central active Questions view while annotations stay out of that inbox.
 
-**Why this priority**: Capturing a question in context and tracking it centrally is the product's primary value.
+**Why this priority**: Capturing follow-up work or context in place and returning to it centrally is the product's primary value.
 
-**Independent Test**: Create a note, add two questions, and verify that both remain visible in the note and appear once in the active Questions view.
+**Independent Test**: Create a workspace and two notes, verify both appear on the Notes page, select a sentence in one note, add a question and an annotation, verify each passage is highlighted and opens its card, and verify only the question appears in Active Questions.
 
 **Acceptance Scenarios**:
 
-1. **Given** a note in the current workspace, **When** the user adds multiple questions, **Then** every question appears in the note and in the workspace's active Questions view.
-2. **Given** a question embedded in a note, **When** the user chooses its presentation, **Then** it can be displayed expanded, collapsed, or as a link without changing its content.
-3. **Given** a question in the active Questions view, **When** the user opens its context, **Then** the user can navigate to its linked note.
-4. **Given** no internet connection and an available local Go service, **When** the user creates or edits notes and questions, **Then** all core capture and tracking actions remain available.
+1. **Given** notes in the current workspace, **When** the user opens the Notes page, **Then** every note appears as a navigable entry and an empty workspace has actionable guidance.
+2. **Given** a selected passage in a note, **When** the user adds a question or annotation, **Then** the passage is highlighted without exposing directive tokens and the new record is saved with the note.
+3. **Given** a highlighted passage, **When** the user clicks it, **Then** a card opens with the quoted passage and question lifecycle or annotation controls as appropriate.
+4. **Given** an unanswered question and an annotation in the same workspace, **When** the user opens Active Questions, **Then** the question appears once and the annotation does not appear.
+5. **Given** no internet connection and an available local Go service, **When** the user creates or reads notes and captures questions or annotations, **Then** all core capture and tracking actions remain available.
 
 ---
 
@@ -160,7 +161,7 @@ A user exports all application data to a portable package and later imports it t
 - **FR-007**: Each question MUST remain one shared item regardless of how many notes and views display it.
 - **FR-008**: Users MUST be able to create, open, and edit a question from a linked note or a central question view.
 - **FR-009**: Changes to a question's text, answer, status, priority, due date, reminder, and tags MUST be reflected in every location where it appears, without requiring duplicate edits.
-- **FR-010**: Embedded questions MUST support expanded, collapsed, and link-only presentation.
+- **FR-010**: Users MUST be able to select a passage in a note and attach a question or annotation; the passage MUST render as a sanitized clickable highlight that opens a card, and directive tokens MUST never be visible in reading view. Legacy expanded, collapsed, and link-only display modes may remain stored for compatibility.
 - **FR-011**: Users MUST be able to see and navigate to every note linked to a question.
 
 #### Question lifecycle and prioritization
@@ -217,7 +218,7 @@ The following are outside the MVP:
 - Cross-device synchronization and conflict resolution
 - Moving notes or questions between workspaces
 - Images and file attachments
-- Advanced links or previews, code blocks, and highlights
+- Advanced links or previews and code blocks
 - Separate user profiles and user switching
 - Authentication
 - Collaboration, permissions, and sharing
@@ -227,7 +228,7 @@ The following are outside the MVP:
 
 - **Workspace**: A separate area such as Work, Personal, or Studies; owns notes, topics, questions, and workspace-scoped tags.
 - **Note**: User-authored content with a title, structured text, optional parent, child notes, one optional topic, tags, linked questions, workspace, and creation and update dates.
-- **Question**: A shared actionable inquiry with question text, optional answer, status, priority, optional due date and reminder, tags, linked notes, owning workspace, and creation and update dates.
+- **Question**: A shared actionable inquiry or passage annotation with kind (`question` or `annotation`), question/comment text, optional answer for questions, status, priority, optional due date and reminder, tags, linked notes, owning workspace, and creation and update dates. Only questions enter Active and Answered views.
 - **Question Link**: The relationship between one question and one note, including the question's presentation preference in that note.
 - **Topic**: A workspace-owned organizational category directly assigned to notes.
 - **Tag**: A flexible label that can classify notes and questions; belongs to a workspace by default and can be explicitly shared with additional workspaces.
@@ -263,5 +264,5 @@ The following are outside the MVP:
 - Import conflicts are reviewed before import, with per-conflict choices to retain existing content, use imported content, or cancel.
 - Reminder delivery uses the notification capabilities available to the selected platform and reports reminders missed while delivery was unavailable.
 - The user-facing editor must support rapid structured note-taking, but selection among plain text, Markdown, and rich text is a planning decision informed by usability evaluation.
-- Links, images, files, code blocks, and highlights are deferred even if the selected editor could support them cheaply; this keeps MVP acceptance criteria stable.
+- Links, images, files, and code blocks are deferred even if the selected editor could support them cheaply; this keeps MVP acceptance criteria stable.
 - Saved views, revision history, backups, synchronization, profiles, authentication, and collaboration are future features and do not block the MVP.

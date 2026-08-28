@@ -1,0 +1,49 @@
+# JavaScript / SvelteKit
+node_modules/
+web/node_modules/
+web/.svelte-kit/
+web/build/
+web/dist/
+web/.vite/
+*.tsbuildinfo
+
+# Go
+server/bin/
+server/webdist/
+server/noted
+*.exe
+*.test
+coverage/
+
+# Runtime and local data
+.env
+.env.*
+!.env.example
+.local/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Build and logs
+dist/
+build/
+*.log
+*.tmp
+*.swp
+
+# Test artifacts
+test-results/
+playwright-report/
+.nyc_output/
+
+# Local agent handoff
+# Generated session notes are useful locally but are not project source.
+task.md
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -97,7 +97,8 @@ The single canonical form of a question shared among linked notes and central vi
 |---|---|---:|---|
 | `id` | UUID text | yes | Primary key |
 | `workspace_id` | UUID text | yes | References `workspaces`; immutable in the MVP; all linked notes must share it |
-| `question_text` | text | yes | Trimmed, 1–10,000 characters |
+| `kind` | text | yes | `NOT NULL DEFAULT 'question'` with `CHECK (kind IN ('question', 'annotation'))`; immutable after creation |
+| `question_text` | text | yes | Trimmed, 1–10,000 characters; question text or annotation comment |
 | `answer_markdown` | text | no | `NULL` when empty after trimming |
 | `status` | enum text | yes | `unanswered`, `in_progress`, `deferred`, `answered` |
 | `priority` | enum text | yes | `none`, `low`, `medium`, `high`, `urgent`; default `none` |
@@ -108,6 +109,7 @@ The single canonical form of a question shared among linked notes and central vi
 
 **Database constraints**:
 
+- `kind` is `NOT NULL` with default `question` and is restricted to `question` or `annotation`.
 - `status = 'answered'` requires `answer_markdown` to be non-null and non-empty after trimming.
 - Removing an answer and changing away from `answered` occur in the same transaction.
 

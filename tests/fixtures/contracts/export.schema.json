@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noted.local/contracts/export.schema.json",
+  "title": "Interactive Note Questions Export Manifest",
+  "description": "Schema for manifest.json in a version 1 export ZIP. Data files are UTF-8 JSON arrays ordered by ID and checksums.txt contains SHA-256 entries for every archive member except itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "exportedAt", "applicationVersion", "files", "counts"],
+  "properties": {
+    "format": { "const": "interactive-note-questions-export" },
+    "formatVersion": { "const": 1 },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "applicationVersion": { "type": "string", "minLength": 1 },
+    "files": {
+      "type": "array",
+      "minItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "entity", "sha256", "records"],
+        "properties": {
+          "path": {
+            "enum": [
+              "data/workspaces.json",
+              "data/topics.json",
+              "data/notes.json",
+              "data/questions.json",
+              "data/note-questions.json",
+              "data/tags.json",
+              "data/tag-workspace-access.json",
+              "data/note-tags.json",
+              "data/question-tags.json",
+              "data/reminders.json"
+            ]
+          },
+          "entity": {
+            "enum": ["workspace", "topic", "note", "question", "noteQuestion", "tag", "tagWorkspaceAccess", "noteTag", "questionTag", "reminder"]
+          },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "records": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspaces", "topics", "notes", "questions", "noteQuestions", "tags", "tagWorkspaceAccess", "noteTags", "questionTags", "reminders"],
+      "properties": {
+        "workspaces": { "$ref": "#/$defs/count" },
+        "topics": { "$ref": "#/$defs/count" },
+        "notes": { "$ref": "#/$defs/count" },
+        "questions": { "$ref": "#/$defs/count" },
+        "noteQuestions": { "$ref": "#/$defs/count" },
+        "tags": { "$ref": "#/$defs/count" },
+        "tagWorkspaceAccess": { "$ref": "#/$defs/count" },
+        "noteTags": { "$ref": "#/$defs/count" },
+        "questionTags": { "$ref": "#/$defs/count" },
+        "reminders": { "$ref": "#/$defs/count" }
+      }
+    }
+  },
+  "$defs": {
+    "count": { "type": "integer", "minimum": 0 }
+  },
+  "x-archive-contract": {
+    "container": "zip",
+    "requiredMembers": ["manifest.json", "checksums.txt"],
+    "jsonEncoding": "UTF-8",
+    "recordOrder": "ascending by canonical ID; relationship records by composite key",
+    "unknownMemberPolicy": "reject unless declared optional by a supported future format version",
+    "pathPolicy": "relative paths only; reject absolute paths, parent traversal, links, and duplicate normalized paths",
+    "limits": {
+      "maximumCompressedBytes": 268435456,
+      "maximumExpandedBytes": 1073741824,
+      "maximumMembers": 1000
+    }
+  }
+}

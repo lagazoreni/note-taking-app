@@ -10,7 +10,7 @@ This guide describes the planned development and validation workflow. Source dir
 - `make`
 - A supported desktop browser: one of the latest two stable Chrome, Edge, or Firefox major versions, or Safari 18 or newer
 
-Internet access is needed only to install dependencies and build images. The running application’s core workflows require no internet connection.
+Internet access is needed only to install dependencies and build images. Install the root Playwright dependency (`npm ci`) and the web dependencies (`cd web && npm ci`) before browser checks. The running application’s core workflows require no internet connection.
 
 ## Configuration
 
@@ -56,7 +56,7 @@ make build-web
 make build-server
 ```
 
-The web build produces static assets. The server build remains testable without those assets by using an empty/test asset provider. The production build copies the completed web assets into the server artifact.
+The web build produces static assets. The server build remains testable without those assets by using the built-in fallback asset provider. The production build copies the completed web assets into the server artifact. If `make` is unavailable on Windows, run the equivalent `cd web && npm ci && npm run check && npm run build` and `cd server && go build ./cmd/noted` commands directly.
 
 ## Run checks
 
@@ -94,7 +94,7 @@ curl http://127.0.0.1:8080/healthz
 curl http://127.0.0.1:8080/readyz
 ```
 
-The first endpoint verifies the process. The second verifies that migrations completed and SQLite is usable.
+The first endpoint verifies the process. The second verifies that migrations completed and SQLite is usable. Both endpoints are same-origin with the API and static shell in the production container.
 
 ## Verify offline behavior
 
@@ -126,7 +126,7 @@ Confirm previously created notes remain. Then run the export/import browser scen
 make test-import-export
 ```
 
-It verifies a full round trip, invalid archive rejection, conflict review, cancellation, and rollback.
+It verifies a full round trip, invalid archive rejection, conflict review, cancellation, and rollback. A failed or cancelled apply must leave the existing SQLite state unchanged; the browser reports a retry-safe error.
 
 ## Database diagnostics
 
