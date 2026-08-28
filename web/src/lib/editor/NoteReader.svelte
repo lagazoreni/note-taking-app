@@ -19,6 +19,7 @@
 	let composerError = '';
 	let openQuestion: Question | null = null;
 	let openPassage = '';
+	let actionLayer: HTMLDivElement | null = null;
 
 	$: html = renderNoteHtml(markdown);
 
@@ -26,10 +27,23 @@
 		return window.getSelection()?.toString().trim() ?? '';
 	}
 
+	function clearSelection() {
+		showToolbar = false;
+		selectedPassage = '';
+	}
+
+	function cancelComposer() {
+		if (composerSaving) return;
+		composerOpen = false;
+		composerText = '';
+		composerError = '';
+		clearSelection();
+	}
+
 	function onMouseUp() {
 		const text = selectedText();
 		if (!text) {
-			showToolbar = false;
+			clearSelection();
 			return;
 		}
 		selectedPassage = text;
@@ -57,7 +71,7 @@
 		);
 		openPassage = token?.directive?.snippet || mark.textContent || '';
 		openQuestion = question;
-		showToolbar = false;
+		clearSelection();
 	}
 
 	function openComposer(kind: QuestionKind) {
@@ -66,6 +80,47 @@
 		composerError = '';
 		composerOpen = true;
 		showToolbar = false;
+	}
+
+	function dismissFromOutside(event: MouseEvent) {
+		if (!showToolbar && !composerOpen) return;
+		const target = event.target as Node | null;
+		if (actionLayer && target && actionLayer.contains(target)) return;
+
+		// The action that opens the composer removes the toolbar and adds the composer
+		// during the same click. By the time the window click handler runs, the
+		// bind:this value can briefly be null, even though the click originated in
+		// the toolbar. Inspect the event path as well so that action clicks are not
+		// mistaken for outside clicks during that transition.
+		const cameFromActionLayer = event
+			.composedPath()
+			.some(
+				(node) =>
+					node instanceof HTMLElement &&
+					(node.classList.contains('toolbar') || node.classList.contains('composer'))
+			);
+		if (cameFromActionLayer) return;
+		if (!composerSaving) cancelComposer();
+	}
+
+	function onWindowClick(event: MouseEvent) {
+		dismissFromOutside(event);
+	}
+
+	function onWindowMouseDown(event: MouseEvent) {
+		dismissFromOutside(event);
+	}
+
+	function onWindowKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape') return;
+		if (composerOpen) {
+			if (!composerSaving) cancelComposer();
+			return;
+		}
+		if (showToolbar) {
+			event.preventDefault();
+			clearSelection();
+		}
 	}
 
 	async function submitComposer() {
@@ -80,6 +135,7 @@
 			}
 			composerOpen = false;
 			composerText = '';
+			selectedPassage = '';
 		} catch (cause) {
 			composerError = cause instanceof Error ? cause.message : 'Could not save highlight';
 		} finally {
@@ -87,6 +143,12 @@
 		}
 	}
 </script>
+
+<svelte:window
+	onclick={onWindowClick}
+	onmousedown={onWindowMouseDown}
+	onkeydown={onWindowKeydown}
+/>
 
 <div class="reader">
 	<!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -->
@@ -101,32 +163,53 @@
 		{@html html}
 	</article>
 	{#if showToolbar}
-		<div class="toolbar" role="toolbar" aria-label="Selection actions">
+		<div class="toolbar" role="toolbar" aria-label="Selection actions" bind:this={actionLayer}>
 			<button type="button" onclick={() => openComposer('question')}>Ask a question</button>
 			<button type="button" onclick={() => openComposer('annotation')}>Add annotation</button>
+			<button type="button" class="secondary" onclick={clearSelection}>Cancel</button>
 		</div>
 	{/if}
 	{#if composerOpen}
-		<div class="composer">
+		<div class="composer" bind:this={actionLayer}>
 			<blockquote>{selectedPassage}</blockquote>
 			{#if composerKind === 'question'}
 				<label for="reader-question-text">Question text</label>
 				<input id="reader-question-text" bind:value={composerText} />
-				<button
-					type="button"
-					onclick={submitComposer}
-					disabled={composerSaving || !composerText.trim()}
-					>{composerSaving ? 'Saving…' : 'Save question'}</button
-				>
+				<div class="composer-actions">
+					<button
+						type="button"
+						onclick={submitComposer}
+						disabled={composerSaving || !composerText.trim()}
+						>{composerSaving ? 'Saving…' : 'Save question'}</button
+					>
+					<button
+						type="button"
+						class="secondary"
+						onclick={cancelComposer}
+						disabled={composerSaving}
+					>
+						Cancel
+					</button>
+				</div>
 			{:else}
 				<label for="reader-annotation-text">Annotation</label>
 				<textarea id="reader-annotation-text" rows="4" bind:value={composerText}></textarea>
-				<button
-					type="button"
-					onclick={submitComposer}
-					disabled={composerSaving || !composerText.trim()}
-					>{composerSaving ? 'Saving…' : 'Save annotation'}</button
-				>
+				<div class="composer-actions">
+					<button
+						type="button"
+						onclick={submitComposer}
+						disabled={composerSaving || !composerText.trim()}
+						>{composerSaving ? 'Saving…' : 'Save annotation'}</button
+					>
+					<button
+						type="button"
+						class="secondary"
+						onclick={cancelComposer}
+						disabled={composerSaving}
+					>
+						Cancel
+					</button>
+				</div>
 			{/if}
 			{#if composerError}<div class="error" role="alert">{composerError}</div>{/if}
 		</div>
@@ -187,6 +270,11 @@
 		background: #fef3c7;
 		color: #78350f;
 	}
+	.composer-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
 	label {
 		font-weight: 650;
 	}
@@ -204,6 +292,11 @@
 		color: #fff;
 		border-radius: 0.4rem;
 		padding: 0.55rem 0.8rem;
+	}
+	button.secondary {
+		background: #fff;
+		border: 1px solid #94a3b8;
+		color: #334155;
 	}
 	button:disabled {
 		opacity: 0.55;

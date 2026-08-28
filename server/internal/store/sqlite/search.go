@@ -21,7 +21,38 @@ func ftsQuery(input string) string {
 	return strings.Join(parts, " OR ")
 }
 
-func (s *CaptureStore) Search(ctx context.Context, input string, contentScope domain.SearchContentScope, workspaceScope domain.SearchWorkspaceScope, workspaceID *string, limit int) ([]domain.SearchResult, error) {
+// Search keeps the original call shape compatible with callers that only pass
+// a limit. New callers may pass a *string (or string) tag ID followed by the
+// limit. SearchWithTag is the typed entry point used by the HTTP handler.
+func (s *CaptureStore) Search(ctx context.Context, input string, contentScope domain.SearchContentScope, workspaceScope domain.SearchWorkspaceScope, workspaceID *string, options ...any) ([]domain.SearchResult, error) {
+	tagID, limit := searchOptions(options)
+	return s.search(ctx, input, contentScope, workspaceScope, workspaceID, tagID, limit)
+}
+
+func (s *CaptureStore) SearchWithTag(ctx context.Context, input string, contentScope domain.SearchContentScope, workspaceScope domain.SearchWorkspaceScope, workspaceID, tagID *string, limit int) ([]domain.SearchResult, error) {
+	return s.search(ctx, input, contentScope, workspaceScope, workspaceID, tagID, limit)
+}
+
+func searchOptions(options []any) (*string, int) {
+	limit := 50
+	var tagID *string
+	for _, option := range options {
+		switch value := option.(type) {
+		case int:
+			limit = value
+		case *string:
+			tagID = value
+		case string:
+			if value != "" {
+				copy := value
+				tagID = &copy
+			}
+		}
+	}
+	return tagID, limit
+}
+
+func (s *CaptureStore) search(ctx context.Context, input string, contentScope domain.SearchContentScope, workspaceScope domain.SearchWorkspaceScope, workspaceID, tagID *string, limit int) ([]domain.SearchResult, error) {
 	if strings.TrimSpace(input) == "" {
 		return []domain.SearchResult{}, nil
 	}
@@ -35,19 +66,22 @@ func (s *CaptureStore) Search(ctx context.Context, input string, contentScope do
 	if workspaceScope == domain.SearchCurrent && (workspaceID == nil || *workspaceID == "") {
 		return nil, fmt.Errorf("workspace is required for current scope")
 	}
+	if tagID != nil && strings.TrimSpace(*tagID) == "" {
+		tagID = nil
+	}
 	result := make([]domain.SearchResult, 0)
 	includeNotes := contentScope == domain.SearchNotes || contentScope == domain.SearchEverything
 	includeQuestions := contentScope == domain.SearchQuestions || contentScope == domain.SearchEverything
 	includeAnswers := contentScope == domain.SearchAnswers || contentScope == domain.SearchEverything
 	if includeNotes {
-		items, err := s.searchFTS(ctx, "notes", match, workspaceScope, workspaceID, limit)
+		items, err := s.searchFTS(ctx, "notes", match, workspaceScope, workspaceID, tagID, limit)
 		if err != nil {
 			return nil, err
 		}
 		result = append(result, items...)
 	}
 	if includeQuestions {
-		items, err := s.searchFTS(ctx, "questions", match, workspaceScope, workspaceID, limit)
+		items, err := s.searchFTS(ctx, "questions", match, workspaceScope, workspaceID, nil, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -68,31 +102,29 @@ func (s *CaptureStore) Search(ctx context.Context, input string, contentScope do
 	}
 	return result, nil
 }
-func (s *CaptureStore) searchFTS(ctx context.Context, kind, match string, scope domain.SearchWorkspaceScope, workspaceID *string, limit int) ([]domain.SearchResult, error) {
-	table := kind + "_fts"
-	idColumn := "note_id"
-	if kind == "questions" {
-		idColumn = "question_id"
-	}
+
+func (s *CaptureStore) searchFTS(ctx context.Context, kind, match string, scope domain.SearchWorkspaceScope, workspaceID, tagID *string, limit int) ([]domain.SearchResult, error) {
 	where := ""
 	args := []any{match}
 	if scope == domain.SearchCurrent {
 		where = " AND f.workspace_id=?"
 		args = append(args, *workspaceID)
 	}
+	if kind == "notes" && tagID != nil {
+		// EXISTS avoids multiplying a note when a tag has more than one
+		// relationship and can use note_tags_tag_note(tag_id, note_id).
+		where += " AND EXISTS (SELECT 1 FROM note_tags nt WHERE nt.note_id=f.note_id AND nt.tag_id=?)"
+		args = append(args, *tagID)
+	}
 	args = append(args, limit)
-	query := fmt.Sprintf(`SELECT f.%s,w.id,w.name,CASE WHEN ?='notes' THEN n.title ELSE '' END,snippet(f,CASE WHEN ?='notes' THEN 2 ELSE 2 END,'<mark>','</mark>','…',24),bm25(f) FROM %s f JOIN %s entity ON entity.id=f.%s JOIN workspaces w ON w.id=entity.workspace_id LEFT JOIN notes n ON n.id=f.note_id WHERE %s MATCH ? %s ORDER BY bm25(f),f.%s LIMIT ?`, idColumn, kind, kind, idColumn, table, where, idColumn)
-	// The query above needs the kind literal for CASE but the FTS MATCH parameter is first in the SQL in practice; use a simpler explicit query per table.
+
+	var query string
 	if kind == "notes" {
 		query = `SELECT f.note_id,w.id,w.name,n.title,snippet(notes_fts,3,'<mark>','</mark>','…',24),bm25(notes_fts) FROM notes_fts f JOIN notes n ON n.id=f.note_id JOIN workspaces w ON w.id=n.workspace_id WHERE notes_fts MATCH ?` + where + ` ORDER BY bm25(notes_fts),f.note_id LIMIT ?`
 	} else {
 		query = `SELECT f.question_id,w.id,w.name,q.question_text,snippet(questions_fts,2,'<mark>','</mark>','…',24),bm25(questions_fts) FROM questions_fts f JOIN questions q ON q.id=f.question_id JOIN workspaces w ON w.id=q.workspace_id WHERE questions_fts MATCH ?` + where + ` ORDER BY bm25(questions_fts),f.question_id LIMIT ?`
 	}
-	args = []any{match}
-	if scope == domain.SearchCurrent {
-		args = append(args, *workspaceID)
-	}
-	args = append(args, limit)
+
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -117,6 +149,7 @@ func (s *CaptureStore) searchFTS(ctx context.Context, kind, match string, scope 
 	}
 	return result, rows.Err()
 }
+
 func (s *CaptureStore) searchFTSAnswers(ctx context.Context, match string, scope domain.SearchWorkspaceScope, workspaceID *string, limit int) ([]domain.SearchResult, error) {
 	where := ""
 	args := []any{match}

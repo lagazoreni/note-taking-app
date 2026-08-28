@@ -461,7 +461,7 @@ func (s *CaptureStore) noteLinks(ctx context.Context, id string) ([]domain.NoteQ
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.NoteQuestion
+	result := make([]domain.NoteQuestion, 0)
 	for rows.Next() {
 		var l domain.NoteQuestion
 		var due sql.NullString
@@ -482,7 +482,7 @@ func (s *CaptureStore) linkedNotes(ctx context.Context, id string) ([]domain.Lin
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.LinkedNoteSummary
+	result := make([]domain.LinkedNoteSummary, 0)
 	for rows.Next() {
 		var value domain.LinkedNoteSummary
 		if err := rows.Scan(&value.ID, &value.Title, &value.DisplayMode); err != nil {
@@ -506,7 +506,7 @@ func stringIDs(ctx context.Context, db interface {
 		return nil, err
 	}
 	defer rows.Close()
-	var result []string
+	result := make([]string, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {

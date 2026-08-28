@@ -67,10 +67,10 @@ SQLite + FTS5  (.local/data/notes.db)
 | Created notes do not appear under Notes | Resolved in Phase 11: `web/src/routes/notes/+page.svelte` loads `notesApi.list` for the selected workspace and renders `NoteTree`. | Done. Keep the workspace empty/loading/error states and note links covered by `web/tests/component/NotesIndex.test.ts`. |
 | Questions show as `{{question:2ac2e756-…}}` | Resolved in Phase 11: reading view tokenizes wrapped and bare directives before sanitized Markdown rendering. | Done. Wrapped passages render as highlights and bare directives as marker chips; raw tokens are hidden. |
 | Desired UX not built | Resolved in Phase 11: `NoteReader` provides selection actions and `AnnotationCard` opens from a highlight. | Done. Questions and annotations are created with an immutable `kind`; only questions are sent to Active/Answered lists. |
-| Existing notes are difficult to edit | Phase 11 makes reading the default and the edit toggle/form path still needs a complete edit/save regression. | T138: make Title/Note editing reliable, preserve drafts on failure, and keep inline question tools in edit mode. |
-| Selection actions cannot be dismissed | `NoteReader` shows the selection toolbar after a selection but has no explicit cancel/clear interaction. | T138: add Cancel, Escape, and outside-click dismissal without issuing a mutation. |
-| Active status filter is visually poor | `QuestionFilters.svelte` uses a native `multiple` select with a fixed four-row height. | T138: replace it with an accessible compact multi-select/chip or checkbox control while preserving query behavior. |
-| Notes cannot be tagged or searched by tag | Note tag persistence exists in the API/model, but the editor and search UI do not expose it and search has no tag predicate. | T138: add tag selection/persistence and indexed tag-aware note search. |
+| Existing notes are difficult to edit | Resolved in T138: existing notes expose bound Title/Note controls in edit mode, save with the latest optimistic version, preserve failed-save drafts, and retain inline question tools. | Done. |
+| Selection actions cannot be dismissed | Resolved in T138: `NoteReader` provides Cancel, Escape, and outside-click dismissal for the selection toolbar and composer before any mutation. | Done. |
+| Active status filter is visually poor | Resolved in T138: `QuestionFilters.svelte` uses a compact keyboard-accessible checkbox popover instead of the fixed native multi-select. | Done. |
+| Notes cannot be tagged or searched by tag | Resolved in T138: the editor loads owned/shared tags, persists `tagIds`, and search applies an indexed `EXISTS` note-tag predicate with URL state and clear/empty/error UI. | Done. |
 
 `NoteTree.svelte` renders the Notes index hierarchy; keep it aligned with the notes list API.
 
@@ -210,7 +210,7 @@ Note delete is two-step: preview token, then explicit decisions for singly-linke
 | PUT | `/api/v1/questions/{id}` | Includes `version`. Answer/status. |
 | POST | `/api/v1/notes/{id}/deletion-preview` then `/delete` | Safe delete |
 
-Frontend clients: `web/src/lib/api/{notes,questions,workspaces,search,dataPortability}.ts`
+Frontend clients: `web/src/lib/api/{notes,questions,workspaces,tags,search,dataPortability}.ts`
 
 ---
 
@@ -250,7 +250,6 @@ Frontend clients: `web/src/lib/api/{notes,questions,workspaces,search,dataPortab
 - No dedicated Annotations inbox
 - Highlight anchors are text, not stable offsets — editing the passage can orphan a wrap
 - No overlapping highlights
-- T138 remains for reliable existing-note editing, dismissible selection actions, status-filter presentation, note tags, and tag-aware note search
 - Edit mode still shows raw Markdown if you toggle it
 - Images / PDFs / rich selection across formatted Markdown (`**bold**`) not handled
 - Cross-workspace moves not in MVP

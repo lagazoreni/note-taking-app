@@ -56,7 +56,7 @@ func (s *CaptureStore) ListTopics(ctx context.Context, workspaceID string) ([]do
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.Topic
+	result := make([]domain.Topic, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -179,7 +179,7 @@ func (s *CaptureStore) ListTags(ctx context.Context, workspaceID string, include
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.Tag
+	result := make([]domain.Tag, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {

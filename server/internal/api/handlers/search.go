@@ -18,11 +18,15 @@ func (a *API) search(w http.ResponseWriter, r *http.Request) {
 	if value := values.Get("workspaceId"); value != "" {
 		workspace = &value
 	}
+	var tagID *string
+	if value := values.Get("tagId"); value != "" {
+		tagID = &value
+	}
 	if query == "" || !validContentScope(content) || !validWorkspaceScope(scope) || (scope == domain.SearchCurrent && workspace == nil) {
 		problem.Write(w, middleware.ID(r), problem.Validation("q, contentScope, workspaceScope, and current workspace are required"))
 		return
 	}
-	items, err := a.Store.Search(r.Context(), query, content, scope, workspace, 50)
+	items, err := a.Store.SearchWithTag(r.Context(), query, content, scope, workspace, tagID, 50)
 	if err != nil {
 		problem.Write(w, middleware.ID(r), problem.Validation(err.Error()))
 		return

@@ -583,6 +583,10 @@ paths:
           in: query
           description: Required when workspaceScope is current.
           schema: { $ref: '#/components/schemas/Id' }
+        - name: tagId
+          in: query
+          description: Restrict note results to notes assigned this tag. The predicate uses note-tag existence semantics and never duplicates a note.
+          schema: { $ref: '#/components/schemas/Id' }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/PageSize'
       responses:

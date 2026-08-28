@@ -1,13 +1,16 @@
 <script lang="ts">
-	import { api } from '$lib/api/client';
+	import { notesApi } from '$lib/api/notes';
+	import { tagsApi } from '$lib/api/tags';
 	import { directiveIds, insertDirective, wrapSelection } from './directives';
 	import { markSaved, markUnsaved } from '$lib/stores/unsaved';
 	import { pushToast } from '$lib/stores/toast';
 	import { questionsApi } from '$lib/api/questions';
 	import QuestionPicker from '$lib/components/QuestionPicker.svelte';
+	import TagSelector from '$lib/components/TagSelector.svelte';
 	import NoteReader from './NoteReader.svelte';
-	import type { Note, NoteQuestionLinkWrite } from '$lib/types/note';
+	import type { Note, NoteQuestionLinkWrite, NoteWrite } from '$lib/types/note';
 	import type { DisplayMode, Question, QuestionKind } from '$lib/types/question';
+	import type { Tag } from '$lib/types/workspace';
 
 	export let workspaceId: string;
 	export let existing: Note | null = null;
@@ -18,6 +21,7 @@
 	let mode: EditorMode = existing ? 'read' : 'edit';
 	let title = existing?.title ?? '';
 	let bodyMarkdown = existing?.bodyMarkdown ?? '';
+	let tagIds: string[] = [...(existing?.tagIds ?? [])];
 	let links: NoteQuestionLinkWrite[] = (existing?.questionLinks ?? []).map((link) => ({
 		questionId: link.questionId,
 		displayMode: link.displayMode,
@@ -27,39 +31,59 @@
 	let questionText = '';
 	let questionMode: DisplayMode = 'collapsed';
 	let availableQuestions: Question[] = [];
+	let availableTags: Tag[] = [];
 	let addingQuestion = false;
 	let saving = false;
 	let error = '';
+	let tagError = '';
+	let tagsLoading = false;
 	let lastSavedTitle = existing?.title ?? '';
 	let lastSavedBodyMarkdown = existing?.bodyMarkdown ?? '';
+	let lastSavedTagIds: string[] = [...(existing?.tagIds ?? [])];
 	let hydratedNoteId: string | null = null;
+	let questionWorkspaceId: string | null = null;
+	let tagsWorkspaceId: string | null = null;
 	let hydrationRequest = 0;
+	let questionRequest = 0;
+	let tagRequest = 0;
+	let savedNewNote = false;
+
+	function sameIDs(left: string[], right: string[]): boolean {
+		if (left.length !== right.length) return false;
+		const a = [...left].sort();
+		const b = [...right].sort();
+		return a.every((value, index) => value === b[index]);
+	}
 
 	$: if (
-		(title || bodyMarkdown) &&
-		(title !== lastSavedTitle || bodyMarkdown !== lastSavedBodyMarkdown)
-	)
+		title !== lastSavedTitle ||
+		bodyMarkdown !== lastSavedBodyMarkdown ||
+		!sameIDs(tagIds, lastSavedTagIds)
+	) {
 		markUnsaved(existing?.id ?? 'new-note');
-	$: if (workspaceId)
-		questionsApi
-			.list({
-				workspaceId,
-				status: ['unanswered', 'in_progress', 'deferred', 'answered'],
-				kind: 'question'
-			})
-			.then((result) => (availableQuestions = result.items))
-			.catch(() => undefined);
+	}
+
+	$: if (workspaceId && workspaceId !== questionWorkspaceId) {
+		questionWorkspaceId = workspaceId;
+		void loadAvailableQuestions(workspaceId);
+	}
+	$: if (workspaceId && workspaceId !== tagsWorkspaceId) {
+		tagsWorkspaceId = workspaceId;
+		void loadAvailableTags(workspaceId);
+	}
 
 	// Summaries returned with a note intentionally do not contain lifecycle fields. Hydrate them
 	// before passing questions to the reading card and lifecycle editor.
 	$: if (existing && existing.id !== hydratedNoteId) {
 		const note = existing;
 		hydratedNoteId = note.id;
-		mode = 'read';
+		if (!savedNewNote) mode = 'read';
 		title = note.title;
 		bodyMarkdown = note.bodyMarkdown;
+		tagIds = [...(note.tagIds ?? [])];
 		lastSavedTitle = note.title;
 		lastSavedBodyMarkdown = note.bodyMarkdown;
+		lastSavedTagIds = [...(note.tagIds ?? [])];
 		const noteLinks = note.questionLinks ?? [];
 		links = noteLinks.map((link) => ({
 			questionId: link.questionId,
@@ -82,6 +106,39 @@
 			updatedAt: '',
 			dueDate: link.question.dueDate
 		};
+	}
+
+	async function loadAvailableQuestions(workspace: string) {
+		const request = ++questionRequest;
+		try {
+			const result = await questionsApi.list({
+				workspaceId: workspace,
+				status: ['unanswered', 'in_progress', 'deferred', 'answered'],
+				kind: 'question'
+			});
+			if (request === questionRequest && workspaceId === workspace) {
+				availableQuestions = result.items ?? [];
+			}
+		} catch {
+			// The picker is an enhancement; a failed list must not prevent editing or saving a note.
+		}
+	}
+
+	async function loadAvailableTags(workspace: string) {
+		const request = ++tagRequest;
+		tagsLoading = true;
+		tagError = '';
+		availableTags = [];
+		try {
+			const result = await tagsApi.list(workspace);
+			if (request === tagRequest && workspaceId === workspace) availableTags = result.items ?? [];
+		} catch (cause) {
+			if (request === tagRequest && workspaceId === workspace) {
+				tagError = cause instanceof Error ? cause.message : 'Could not load workspace tags';
+			}
+		} finally {
+			if (request === tagRequest) tagsLoading = false;
+		}
 	}
 
 	async function hydrateQuestions(note: Note, request: number) {
@@ -139,6 +196,7 @@
 	async function save(): Promise<Note | null> {
 		saving = true;
 		error = '';
+		const editingNote = existing;
 		try {
 			const ids = directiveIds(bodyMarkdown);
 			const questionLinks = ids.map((id, position) => {
@@ -147,30 +205,34 @@
 					? { ...current, position }
 					: { questionId: id, displayMode: 'collapsed' as DisplayMode, position };
 			});
-			const payload = {
+			const payload: NoteWrite = {
 				workspaceId,
 				title: title.trim(),
 				bodyMarkdown,
-				topicId: existing?.topicId ?? null,
-				parentNoteId: existing?.parentNoteId ?? null,
+				topicId: editingNote?.topicId ?? null,
+				parentNoteId: editingNote?.parentNoteId ?? null,
 				questionLinks,
-				tagIds: existing?.tagIds ?? []
+				tagIds: [...tagIds]
 			};
-			const note = existing
-				? await api.put<Note>(`/api/v1/notes/${existing.id}`, {
-						...payload,
-						version: existing.version
-					})
-				: await api.post<Note>('/api/v1/notes', payload);
-			const unsavedKey = existing?.id ?? 'new-note';
+			const note = editingNote
+				? await notesApi.update(editingNote.id, { ...payload, version: editingNote.version })
+				: await notesApi.create(payload);
+			const unsavedKey = editingNote?.id ?? 'new-note';
 			links = questionLinks;
 			title = note.title;
 			bodyMarkdown = note.bodyMarkdown;
+			tagIds = [...(note.tagIds ?? tagIds)];
 			lastSavedTitle = title;
 			lastSavedBodyMarkdown = bodyMarkdown;
+			lastSavedTagIds = [...tagIds];
 			markSaved(unsavedKey);
 			// Keep the authoritative version locally so a subsequent edit does not reuse a stale token.
+			if (!editingNote) savedNewNote = true;
 			existing = note;
+			const questionByID = new Map(questions.map((question) => [question.id, question]));
+			questions = (note.questionLinks ?? []).map(
+				(link) => questionByID.get(link.questionId) ?? questionFromLink(link)
+			);
 			onSave?.(note);
 			return note;
 		} catch (cause) {
@@ -209,6 +271,10 @@
 		const savedNote = await save();
 		if (!savedNote) throw new Error(error || 'Could not save highlight');
 		return question;
+	}
+
+	function retryTags() {
+		if (workspaceId) void loadAvailableTags(workspaceId);
 	}
 
 	function toggleMode() {
@@ -251,6 +317,16 @@
 			rows="14"
 			placeholder="Write paragraphs, lists, and questions…"
 		></textarea>
+		<section class="note-tags" aria-labelledby="note-tags-title">
+			<h2 id="note-tags-title">Note tags</h2>
+			{#if tagsLoading}<p class="tag-status" role="status">Loading tags…</p>{:else if tagError}<div
+					class="tag-error"
+					role="status"
+				>
+					<span>{tagError}</span><button type="button" onclick={retryTags}>Retry tags</button>
+				</div>{/if}
+			<TagSelector tags={availableTags} bind:selected={tagIds} />
+		</section>
 		<section class="question-tools" aria-labelledby="question-tools-title">
 			<h2 id="question-tools-title">Inline questions</h2>
 			<div class="question-create">
@@ -335,6 +411,33 @@
 	textarea {
 		line-height: 1.5;
 	}
+	.note-tags {
+		margin-top: 0.75rem;
+		padding: 0.85rem;
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		border-radius: 0.5rem;
+	}
+	.note-tags h2 {
+		margin: 0 0 0.5rem;
+		font-size: 1rem;
+	}
+	.tag-status,
+	.tag-error {
+		margin: 0;
+		color: #475569;
+	}
+	.tag-error {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.5rem;
+		color: #991b1b;
+	}
+	.tag-error button {
+		border: 1px solid #fecaca;
+		background: white;
+		border-radius: 0.3rem;
+	}
 	.question-tools {
 		margin-top: 0.75rem;
 		padding: 0.85rem;
@@ -370,6 +473,9 @@
 		color: white;
 		border-radius: 0.4rem;
 		white-space: nowrap;
+	}
+	.question-create button:disabled {
+		opacity: 0.55;
 	}
 	.question-preview {
 		display: grid;

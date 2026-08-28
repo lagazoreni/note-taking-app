@@ -3,7 +3,7 @@
 	export let questions: Question[] = [];
 	export let onSelect: ((question: Question) => void) | undefined = undefined;
 	let query = '';
-	$: matches = questions.filter((question) =>
+	$: matches = (questions ?? []).filter((question) =>
 		question.questionText.toLowerCase().includes(query.toLowerCase())
 	);
 </script>
@@ -17,7 +17,7 @@
 			{#each matches as question}<li>
 					<button type="button" onclick={() => onSelect?.(question)}
 						><strong>{question.questionText}</strong><span
-							>{question.linkedNotes.map((note) => note.title).join(', ') || 'Unlinked'} · {question.status}</span
+							>{(question.linkedNotes ?? []).map((note) => note.title).join(', ') || 'Unlinked'} · {question.status}</span
 						></button
 					>
 				</li>{/each}

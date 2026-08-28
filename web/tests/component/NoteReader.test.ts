@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import NoteReader from '$lib/editor/NoteReader.svelte';
 import type { Question } from '$lib/types/question';
 
@@ -34,6 +34,10 @@ function mockSelection(text: string) {
 }
 
 describe('NoteReader', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it('shows selection menu actions after text is selected', async () => {
 		render(NoteReader, { markdown: 'The mitochondria is the powerhouse.', questions: [] });
 		mockSelection('The mitochondria is the powerhouse.');
@@ -51,5 +55,31 @@ describe('NoteReader', () => {
 		await fireEvent.click(screen.getByText('selected passage'));
 		expect(screen.getByRole('dialog', { name: /question/i })).toBeInTheDocument();
 		expect(screen.getByText('What causes this?')).toBeInTheDocument();
+	});
+
+	it('dismisses selection actions and the composer without capturing', async () => {
+		const onCapture = vi.fn();
+		render(NoteReader, { markdown: 'Select this passage.', questions: [], onCapture });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		expect(screen.queryByRole('toolbar', { name: 'Selection actions' })).not.toBeInTheDocument();
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+		expect(screen.getByLabelText('Question text')).toBeInTheDocument();
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		expect(screen.queryByLabelText('Question text')).not.toBeInTheDocument();
+		expect(onCapture).not.toHaveBeenCalled();
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Add annotation' }));
+		await fireEvent.click(document.body);
+		expect(screen.queryByLabelText('Annotation')).not.toBeInTheDocument();
+		expect(onCapture).not.toHaveBeenCalled();
 	});
 });

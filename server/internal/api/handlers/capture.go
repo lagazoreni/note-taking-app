@@ -142,7 +142,7 @@ func (a *API) listNotesBasic(ctx context.Context, workspace string) ([]domain.No
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.Note
+	result := make([]domain.Note, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -224,7 +224,7 @@ func (a *API) listQuestionsBasic(ctx context.Context, workspace, status string) 
 		return nil, err
 	}
 	defer rows.Close()
-	var result []domain.Question
+	result := make([]domain.Question, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
