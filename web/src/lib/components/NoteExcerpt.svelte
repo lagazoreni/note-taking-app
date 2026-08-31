@@ -4,6 +4,7 @@
 
 	export let markdown = '';
 	export let questionId = '';
+	export let ariaLabel = 'Source note';
 
 	$: html = renderNoteHtml(markdown);
 	$: html, questionId, scrollToHighlight();
@@ -15,7 +16,7 @@
 	}
 </script>
 
-<article aria-label="Source note">
+<article aria-label={ariaLabel}>
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -- renderNoteHtml sanitizes the generated HTML with DOMPurify. -->
 	{@html html}
 </article>

@@ -434,7 +434,7 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
   **Do not:** import `NoteReader.svelte`; no toolbar, composer, or capture.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteExcerpt.test.ts`
 
-- [ ] T142 [US8] Create `web/src/lib/components/QuestionContext.svelte`.
+- [X] T142 [US8] Create `web/src/lib/components/QuestionContext.svelte`.
   **Read:** `web/src/lib/types/question.ts`, `web/src/lib/types/note.ts`, `web/src/lib/components/QuestionLifecycle.svelte`, `web/src/lib/components/QuestionSchedule.svelte`, `web/src/lib/api/notes.ts`.
   **Do:** Props: `question: Question`, optional `note: Note | null`, `selectedNoteId: string`, `onSelectNote: (id: string) => void`, `onSave: (q: Question) => void`. Layout: note pane (or “This question is currently unlinked.”) + `QuestionLifecycle` + `QuestionSchedule`. If `question.linkedNotes.length > 1`, render a `<label for="context-note">Source note</label>` `<select id="context-note">` of linked notes. Wide: two columns. Narrow (`max-width: 800px`): stack note above controls. Use `export let` (not runes).
   **Do not:** fetch inside this component; the page fetches.
