@@ -133,6 +133,100 @@ A user exports all application data to a portable package and later imports it t
 3. **Given** invalid or unsupported import data, **When** validation runs, **Then** no existing data is changed and the user receives a clear report.
 4. **Given** imported records that conflict with existing records, **When** validation completes, **Then** the user can review the conflict and choose to keep existing data, use imported data, or cancel before changes occur.
 
+---
+
+### User Story 8 - Answer in the Original Note Context (Priority: P1)
+
+A user opens a question from Active Questions, Next, or a note and answers it beside the source passage. While reading a note, they can see that note's open questions and jump to the next unanswered gap.
+
+**Why this priority**: The product's unique value is the passage, not a detached todo list. Answering without the sentence that caused the question breaks the primary loop.
+
+**Independent Test**: Create a note, capture two questions on different sentences, open the first from Active Questions, verify the note and highlighted passage are visible next to answer controls, then from the note use Next unanswered to open the second question's card.
+
+**Acceptance Scenarios**:
+
+1. **Given** a question linked to a note, **When** the user opens it from Active Questions, **Then** the same page shows the source note, the passage is highlighted and scrolled into view, and answer/status controls are available without a second navigation.
+2. **Given** a question linked to two notes, **When** the user opens it, **Then** the first linked note is shown by default and the user can switch to the other linked note.
+3. **Given** an unlinked question, **When** the user opens it, **Then** answer/status controls remain available and the note pane explains that the question is currently unlinked.
+4. **Given** a note with unanswered or in-progress questions, **When** the user reads the note, **Then** a note-local list shows those questions in directive order and excludes annotations and answered questions.
+5. **Given** multiple open questions on a note, **When** the user chooses Next unanswered, **Then** the next open question in directive order is scrolled into view and its card opens; if none remain, the UI says so.
+
+---
+
+### User Story 9 - Decide What to Answer Next (Priority: P2)
+
+A user opens a single opinionated Next queue for the current workspace instead of building a saved filter.
+
+**Why this priority**: Due dates, priority, and status already exist; they are not usable as a daily workflow until they appear as one default queue.
+
+**Independent Test**: Seed overdue, due-today, in-progress, deferred-ready, high-priority, future-deferred, annotation, and answered items; open Next; verify section order and that annotations, answered questions, and future-deferred questions are absent; open one item into answer-in-context.
+
+**Acceptance Scenarios**:
+
+1. **Given** active questions in the current workspace, **When** the user opens Next, **Then** only `kind=question` items in unanswered, in progress, or deferred appear, grouped and ordered as: Overdue; Due today; In progress; Deferred ready; High priority.
+2. **Given** a deferred question whose due date is in the future, **When** Next is opened, **Then** that question is omitted from every section.
+3. **Given** an annotation or an answered question, **When** Next is opened, **Then** it does not appear.
+4. **Given** an empty section, **When** Next is rendered, **Then** that section is hidden; if the whole queue is empty, the page shows actionable guidance.
+5. **Given** a Next item, **When** the user opens it, **Then** they land on the answer-in-context question page.
+6. **Given** no internet access and an available local Go service, **When** the user opens Next, **Then** the queue still loads from the local API.
+
+Next is not a saved-filter builder and MUST NOT add a query language or reusable views.
+
+---
+
+### User Story 10 - Defer with a Resume Date (Priority: P2)
+
+A user who defers a question must set a resume date so the question can return in Next instead of disappearing into a junk drawer.
+
+**Why this priority**: Deferred without a wake-up date silently kills the lifecycle the rest of the product depends on.
+
+**Independent Test**: Attempt to mark a question Deferred with no due date and verify rejection; set a date, save as Deferred, verify it appears under Deferred ready or is omitted when the date is in the future; load a legacy deferred question that has no due date and verify it still opens, but saving it as Deferred again requires a date.
+
+**Acceptance Scenarios**:
+
+1. **Given** a question, **When** the user sets status to Deferred without a due date, **Then** the change is rejected and the user is told a resume date is required.
+2. **Given** Deferred selected in the lifecycle UI, **When** no due date is present, **Then** a date control is required before save.
+3. **Given** an existing deferred question with a null due date, **When** it is opened, **Then** it still loads; a later save that keeps Deferred requires a due date.
+4. **Given** an annotation, **When** its comment is edited, **Then** this resume-date rule is not applied.
+
+---
+
+### User Story 11 - Resolved Highlights and Promote Answer (Priority: P2)
+
+After a question is answered, its highlight looks resolved. The user may insert the answer into the note after the passage without turning the note into a live embed.
+
+**Why this priority**: Reading should get clearer over time. Answering should not leave the note looking like an open problem, and the optional promote step folds follow-up back into the note the user owns.
+
+**Independent Test**: Answer a question, reload the note, verify the highlight style is resolved and the card shows the answer; insert the answer into the note, reload, verify a blockquote follows the wrap; insert again and verify the note body is unchanged; reopen the question and verify the highlight uses the active style again.
+
+**Acceptance Scenarios**:
+
+1. **Given** an answered question wrap, **When** the note is read, **Then** that highlight uses a resolved style distinct from unanswered, in-progress, and deferred highlights.
+2. **Given** an answered question card, **When** it is opened, **Then** the answer is visible.
+3. **Given** an answered wrapped question, **When** the user chooses Insert answer into note, **Then** a Markdown blockquote containing the answer is inserted immediately after the wrap.
+4. **Given** that blockquote already follows the wrap, **When** Insert is chosen again, **Then** the note body is not duplicated.
+5. **Given** the user answers a question, **When** they do not choose Insert, **Then** the note body is not mutated.
+6. **Given** an answered question that is reopened, **When** the note is read, **Then** the highlight uses the active style again. Inserted note text is left in place.
+
+---
+
+### User Story 12 - Capture and Relink from Reading (Priority: P1)
+
+A user captures and links questions from the reading view, including existing questions and questions created without a passage. Selection wrapping tolerates light Markdown/whitespace differences. Keyboard shortcuts cover the capture actions.
+
+**Why this priority**: Shared questions and unlinked follow-ups are already in the data model, but reading is the default surface. Exact substring wrap fails the “exact context” promise on ordinary formatted text.
+
+**Independent Test**: Select rendered bold text whose Markdown is `**bold**` and capture a question; link an existing question onto a new passage from reading; create an unlinked question from Active Questions and attach it to a passage later; exercise Q / A / L / Escape with a selection and verify typing in the composer is not stolen.
+
+**Acceptance Scenarios**:
+
+1. **Given** a selection that matches note Markdown after collapsing whitespace or stripping emphasis markers, **When** the user captures a question or annotation, **Then** the wrap is applied to the source Markdown and no raw token is shown in reading view.
+2. **Given** a selection that cannot be mapped to note Markdown, **When** capture is attempted, **Then** no question, annotation, or note mutation occurs and the user sees a clear error.
+3. **Given** a text selection in reading view, **When** the user chooses Link existing question and picks a question not already linked to this note, **Then** the passage is wrapped with that question id and the canonical question is unchanged except for the new link.
+4. **Given** Active Questions, **When** the user creates a question without a passage, **Then** it appears in Active Questions as unlinked.
+5. **Given** an unlinked question and a reading selection, **When** the user attaches it to the passage, **Then** the wrap and note link are saved and the question remains the same record.
+6. **Given** a reading selection and no open composer or focused text field, **When** the user presses Q, A, L, or Escape, **Then** those keys ask, annotate, link existing, or dismiss. The same keys do nothing while typing in an input, textarea, or composer.
+
 ### Edge Cases
 
 - A question may remain intentionally unlinked after its last linked note is deleted; it remains accessible through central question views and search.
@@ -205,9 +299,29 @@ A user exports all application data to a portable package and later imports it t
 - **FR-039**: Failed or cancelled imports MUST leave the pre-import application state unchanged.
 - **FR-040**: The MVP MUST support the web platform with all core capabilities available without internet access while the local Go service is running. Desktop and Android support are deferred to future releases.
 
+#### Reading context, next queue, and capture
+
+- **FR-041**: Opening a question MUST show answer/status controls on the same page as the source note excerpt when a linked note exists, with the matching passage highlighted and scrolled into view.
+- **FR-042**: When a question is linked to multiple notes, the context page MUST default to the first linked note and MUST allow switching among linked notes.
+- **FR-043**: Unlinked questions MUST still open for answering and MUST explain that no source note is linked.
+- **FR-044**: A note reading view MUST list that note's open questions (`kind=question`, status not `answered`) in directive order, excluding annotations.
+- **FR-045**: A Next unanswered action on a note MUST open the next open question in directive order, scroll to its highlight, and open its card, or announce that none remain.
+- **FR-046**: The application MUST provide one workspace-scoped Next queue. It MUST NOT be a saved-filter builder.
+- **FR-047**: Next MUST include only current-workspace `kind=question` items with status unanswered, in_progress, or deferred, grouped in this order, hiding empty groups: Overdue (`due_date < today` and status is not deferred); Due today (`due_date = today` and status is not deferred); In progress (status `in_progress` and not already in Overdue or Due today); Deferred ready (status `deferred` and `due_date <= today`); High priority (priority `high` or `urgent`, status unanswered or in_progress, and not already listed). Future-deferred, answered, and annotation items MUST be omitted.
+- **FR-048**: Transitioning a question to Deferred MUST require a non-empty due date. Existing deferred rows with a null due date MUST still load. Annotations are exempt.
+- **FR-049**: Reading view MUST style answered-question highlights as resolved and distinct from active question highlights. Style is driven by the live question status.
+- **FR-050**: Users MUST be able to insert an answered question's answer into the note as a Markdown blockquote immediately after the wrap. The action MUST be user-initiated, idempotent if that blockquote already follows the wrap, and MUST NOT run automatically on answer.
+- **FR-051**: Passage wrapping MUST match note Markdown by exact substring first, then collapsed whitespace, then emphasis-stripped text (`*`, `_`, `**`, `` ` ``). If no match, the application MUST mutate nothing and MUST show an error.
+- **FR-052**: Reading-view selection MUST be able to link an existing same-workspace question that is not already linked to the note.
+- **FR-053**: Users MUST be able to create a question with no passage and later attach it to a selected passage from reading view. The question remains one canonical record.
+- **FR-054**: With a reading selection and no focused text field or open composer, Q MUST start a question, A an annotation, L link-existing, and Escape MUST dismiss selection actions. Those shortcuts MUST NOT fire while typing in an input, textarea, or composer.
+- **FR-055**: Opening a Next or Active Questions item MUST land on the answer-in-context question page, including `noteId` when a linked note exists.
+
 ### Scope Boundaries
 
 The MVP includes structured text notes, question tracking, workspaces, topics, tags, parent-child note organization, due dates, reminders, search, sorting, filtering, offline operation, and complete import/export.
+
+Post-MVP deepening in this specification (US8–US12) includes answer-in-context, a note-local open-question rail, one opinionated Next queue, deferred resume dates, resolved highlights with optional answer insertion, sturdier passage matching, reading-view link/attach, and keyboard capture.
 
 The following are outside the MVP:
 
@@ -249,6 +363,10 @@ The following are outside the MVP:
 - **SC-008**: A complete export-import round trip preserves 100% of supported content, relationships, statuses, settings, and dates in the acceptance data set.
 - **SC-009**: Invalid, cancelled, interrupted, or conflicting imports cause no unapproved loss or overwrite of existing data in all acceptance tests.
 - **SC-010**: At least 85% of usability-test participants rate the question capture and follow-up workflow as easy or very easy.
+- **SC-011**: In usability testing, at least 90% of users can open a question from Active Questions and see the source passage on the same page on the first attempt without assistance.
+- **SC-012**: Given a seeded Next fixture, 100% of automated tests place overdue, due-today, in-progress, deferred-ready, and high-priority items in the specified sections and omit answered, annotation, and future-deferred items.
+- **SC-013**: 100% of attempts to mark a question Deferred without a due date are rejected in domain, API, and browser tests.
+- **SC-014**: Passage wrap succeeds for selections that differ from source Markdown only by collapsed whitespace or emphasis markers, and fails with no mutation when the passage cannot be mapped.
 
 ## Assumptions
 

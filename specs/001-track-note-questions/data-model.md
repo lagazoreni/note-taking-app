@@ -119,6 +119,7 @@ The single canonical form of a question shared among linked notes and central vi
 |---|---|---|---|
 | New | `unanswered` | Always | Default creation state |
 | Any active status | Any active status | Valid request/version | Preserve answer and links |
+| Any status | `deferred` | Non-empty `due_date` in the resulting record | Resume date is required; existing deferred rows with null `due_date` may still be read |
 | Any active status | `answered` | Non-empty answer exists in resulting record | Preserve all links; appears in Answered view |
 | `answered` | `in_progress` | Always | Default reopen; preserve answer |
 | `answered` | `unanswered` or `deferred` | Explicit choice | Preserve answer unless explicitly edited |

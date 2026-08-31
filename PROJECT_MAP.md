@@ -12,6 +12,7 @@ Do not scan the whole repo unless the map is stale.
 4. Click the highlight → open a **card** (question/annotation).
 5. Unanswered **questions** still appear under Active Questions.
 6. Annotations are comments on a passage; they should not clutter Active Questions.
+7. Next deepening (not shipped): answer beside the passage, Next queue, deferred resume date, resolved highlights, sturdier wrap, link/attach from reading, keyboard capture — **Phase 13–20 in `specs/001-track-note-questions/tasks.md`**.
 
 ---
 
@@ -247,10 +248,27 @@ Frontend clients: `web/src/lib/api/{notes,questions,workspaces,tags,search,dataP
 
 ## Remaining product gaps (do not pretend these exist)
 
+Shipped: Notes index, highlight/annotation capture, kind filter, existing-note edit, capture dismissal, tag search.
+
+**Next work is Phase 13–20 in `specs/001-track-note-questions/tasks.md` (US8–US12).** A small-model session reads that phase only, then only named files.
+
+| Phase | User-visible outcome | Start files |
+|---|---|---|
+| 13 | Answer beside the source passage | `web/src/lib/components/NoteExcerpt.svelte` (new), `QuestionContext.svelte` (new), `web/src/routes/questions/[questionId]/+page.svelte` |
+| 14 | Open-question rail + Next unanswered on a note | `NoteQuestionRail.svelte` (new), `NoteReader.svelte`, `NoteEditor.svelte` |
+| 15 | Opinionated `/next` queue (not saved filters) | `web/src/lib/questions/nextQueue.ts` (new), `web/src/routes/next/+page.svelte` (new), `AppNavigation.svelte` |
+| 16 | Deferred requires a resume date | `server/internal/domain/question_lifecycle.go`, `QuestionLifecycle.svelte` |
+| 17 | Resolved highlight style + optional insert answer | `directives.ts`, `markdown.ts`, `AnnotationCard.svelte` |
+| 18 | Wrap rendered selections (`**bold**` ↔ bold) | `directives.ts` `findSelectionInMarkdown` |
+| 19 | Link existing / create unlinked / attach later | `NoteReader.svelte`, `questions/+page.svelte`, `QuestionPicker.svelte` |
+| 20 | Q / A / L / Esc on reading selection | `NoteReader.svelte` keydown |
+
+Still out of scope:
+
 - No dedicated Annotations inbox
-- Highlight anchors are text, not stable offsets — editing the passage can orphan a wrap
 - No overlapping highlights
 - Edit mode still shows raw Markdown if you toggle it
-- Images / PDFs / rich selection across formatted Markdown (`**bold**`) not handled
+- Images / PDFs / stable offset anchors (Phase 18 is match-on-wrap only, not a new schema)
 - Cross-workspace moves not in MVP
-- Display-mode controls (expanded/collapsed/link) become legacy once cards ship
+- Saved filters, AI, flashcards, Feynman modes
+- Display-mode controls (expanded/collapsed/link) are legacy once cards shipped

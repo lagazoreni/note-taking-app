@@ -4,7 +4,7 @@
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 
-**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. It is the mental model for Phase 11 (Notes list + highlight/annotation). Do not scan the whole repo unless the map is stale.
+**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. For highlight/annotation work, use Phase 11. For answer-in-context, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phase 13–20 in this file** — read only that phase, then only the files it names. Do not scan the whole repo unless the map is stale.
 
 **Tests**: Automated tests are included because the project constitution requires unit, integration, API contract, browser workflow, and container smoke coverage. Within each story, create the listed tests first and verify they fail for the expected missing behavior before implementation.
 
@@ -411,6 +411,323 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 
 ---
 
+## Phase 13: Answer in context (US8) — gap remediation
+
+**Purpose**: Opening a question shows the source note and highlighted passage on the same page as answer/status controls.
+
+**For a small model.** Do not scan the repo. Do not reread US1–US7 or Phase 11 internals. Read `PROJECT_MAP.md` once, this phase only, then only the files named in the current task. Implement **one task**, run its verify command, stop.
+
+**Independent Test**: Capture a question on a sentence. From Active Questions open it. The question page shows the note, the sentence is highlighted and in view, and the answer box is on the same page. An unlinked question still opens and says it is unlinked.
+
+**Do not**: change capture, kind, lifecycle rules, NoteReader toolbar, `/notes/new` labels, or add APIs.
+
+### Tests for Phase 13 (write first; they must fail)
+
+- [ ] T139 [P] [US8] Add `web/tests/component/NoteExcerpt.test.ts`: render markdown with a wrapped directive; with `questionId` set, the `mark[data-annotation-id]` exists; no “Ask a question” / “Add annotation” buttons. Add `web/tests/component/QuestionContext.test.ts`: linked question shows note title and `QuestionLifecycle`; unlinked question shows text “currently unlinked” and still shows `QuestionLifecycle`; two `linkedNotes` render a control to switch notes.
+- [ ] T140 [P] [US8] Add Playwright `tests/e2e/us8-answer-in-context.spec.ts`: create workspace + note + one highlight question; visit Active Questions; click the question; assert the source passage text is visible and an Answer field is visible on the same page. Keep `tests/e2e/accessibility-notes.spec.ts` passing.
+
+### Implementation for Phase 13
+
+- [ ] T141 [P] [US8] Create `web/src/lib/components/NoteExcerpt.svelte`.
+  **Read:** `web/src/lib/editor/markdown.ts` (`renderNoteHtml`).
+  **Do:** `export let markdown = ''`; `export let questionId = ''`. Render sanitized HTML in `<article aria-label="Source note">`. After markdown/questionId change, `document.querySelector('mark[data-annotation-id="' + questionId + '"]')?.scrollIntoView({ block: 'center' })`.
+  **Do not:** import `NoteReader.svelte`; no toolbar, composer, or capture.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteExcerpt.test.ts`
+
+- [ ] T142 [US8] Create `web/src/lib/components/QuestionContext.svelte`.
+  **Read:** `web/src/lib/types/question.ts`, `web/src/lib/types/note.ts`, `web/src/lib/components/QuestionLifecycle.svelte`, `web/src/lib/components/QuestionSchedule.svelte`, `web/src/lib/api/notes.ts`.
+  **Do:** Props: `question: Question`, optional `note: Note | null`, `selectedNoteId: string`, `onSelectNote: (id: string) => void`, `onSave: (q: Question) => void`. Layout: note pane (or “This question is currently unlinked.”) + `QuestionLifecycle` + `QuestionSchedule`. If `question.linkedNotes.length > 1`, render a `<label for="context-note">Source note</label>` `<select id="context-note">` of linked notes. Wide: two columns. Narrow (`max-width: 800px`): stack note above controls. Use `export let` (not runes).
+  **Do not:** fetch inside this component; the page fetches.
+  **Verify:** `npm --prefix web test -- --run tests/component/QuestionContext.test.ts`
+
+- [ ] T143 [US8] Wire `web/src/routes/questions/[questionId]/+page.svelte`.
+  **Read:** that page, `web/src/lib/api/questions.ts`, `web/src/lib/api/notes.ts`, `$app/state` `page`.
+  **Do:** Load question with `questionsApi.get`. `noteId` = `page.url.searchParams.get('noteId')` if it is in `question.linkedNotes`, else `question.linkedNotes[0]?.id`. If `noteId`, load `notesApi.get`. Render `QuestionContext`. Switching notes reloads that note. Keep loading/error/retry patterns already on the page.
+  **Do not:** add new API fields; do not log question/note bodies.
+  **Verify:** `npm --prefix web test -- --run tests/component/QuestionContext.test.ts tests/component/NoteExcerpt.test.ts`
+
+- [ ] T144 [US8] Point list cards at context.
+  **Read:** `web/src/lib/components/QuestionList.svelte`.
+  **Do:** Question title link becomes `/questions/{id}?noteId={firstLinkedNoteId}` when `linkedNotes[0]` exists, else `/questions/{id}`. Accessible name stays the question text.
+  **Verify:** `npx playwright test tests/e2e/us8-answer-in-context.spec.ts tests/e2e/us3-question-lifecycle.spec.ts`
+
+**Landmines:** Svelte 5 but match `export let`. JSON decoder rejects unknown fields — send no new keys. `questionLinks` order is irrelevant here (do not save notes). Do not use `NoteReader` on this page (it would offer capture).
+
+**Checkpoint**: Active Questions → question page shows passage + answer controls together. Unlinked questions still open.
+
+---
+
+## Phase 14: Note-local open questions + next gap (US8) — gap remediation
+
+**Purpose**: While reading a note, see that note’s open questions and jump to the next unanswered highlight.
+
+**For a small model.** Read this phase only. One task at a time. Do not rebuild `NoteReader` capture.
+
+**Independent Test**: Two questions on different sentences in one note. Reading view lists both. Next unanswered opens the first card and scrolls to it; again opens the second; again announces none remain. Annotations and answered questions are absent from the rail.
+
+**Do not**: put annotations or answered items in the rail; change Active Questions; add APIs.
+
+### Tests for Phase 14 (write first; they must fail)
+
+- [ ] T145 [P] [US8] Add `web/tests/component/NoteQuestionRail.test.ts`: given mixed questions, the rail lists only `kind=question` with status `unanswered` / `in_progress` / `deferred`, in the provided `orderedIds` order; clicking an item calls `onSelect(id)`; Next unanswered calls `onNext`; when `remaining === 0` the next control is disabled or the rail text is `No open questions in this note`.
+- [ ] T146 [P] [US8] Extend `web/tests/component/NoteReader.test.ts`: when `focusQuestionId` is set to a wrapped id, the card opens. Extend `tests/e2e/us8-answer-in-context.spec.ts` (or add `tests/e2e/us8-note-rail.spec.ts`) with two highlight questions, Next unanswered twice, then the empty message.
+
+### Implementation for Phase 14
+
+- [ ] T147 [P] [US8] Create `web/src/lib/components/NoteQuestionRail.svelte`.
+  **Do:** `export let questions: Question[] = []`; `export let orderedIds: string[] = []`; `export let onSelect: ((id: string) => void) | undefined`; `export let onNext: (() => void) | undefined`. Filter `kind !== 'annotation'` (missing kind counts as question) and `status !== 'answered'`. Sort by `orderedIds`. Render `<aside aria-label="Open questions in this note">` with a button per item (question text + status) and a “Next unanswered” button. Empty: `No open questions in this note`.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteQuestionRail.test.ts`
+
+- [ ] T148 [US8] Open a highlight from the outside.
+  **Read:** `web/src/lib/editor/NoteReader.svelte`.
+  **Do:** Add `export let focusQuestionId: string | null = null`. When `focusQuestionId` changes to a non-null id present in `questions`, set `openQuestion` / `openPassage` the same way highlight click does (use `tokenizeDirectives` snippet). Do not clear `focusQuestionId` yourself if it is a prop; parent may reset it.
+  **Do not:** remove Cancel / Escape / outside-click dismissal.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T149 [US8] Wire the rail in `web/src/lib/editor/NoteEditor.svelte` read mode.
+  **Read:** `NoteEditor.svelte` around the `NoteReader` usage; `web/src/lib/editor/directives.ts` `directiveIds`.
+  **Do:** Beside `NoteReader` (not inside the article), render `NoteQuestionRail` with `questions` and `orderedIds={directiveIds(bodyMarkdown)}`. Keep `focusId` in the editor. Rail `onSelect` / `onNext` set `focusId` to the chosen / next open id in directive order (skip annotation + answered). After the last item, set `focusId = null` (rail empty message handles UX). Pass `focusQuestionId={focusId}` to `NoteReader`. Narrow: stack rail below the reader.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteEditor.test.ts tests/component/NoteQuestionRail.test.ts tests/component/NoteReader.test.ts` then the Phase 14 Playwright file.
+
+**Landmines:** Directive order, not createdAt. Annotations never in the rail. `/notes/new` stays edit mode with Title/Note labels — do not show the rail on new unsaved notes.
+
+**Checkpoint**: Reading a note, open questions are listed in passage order and Next unanswered walks them.
+
+---
+
+## Phase 15: Today / Next queue (US9) — gap remediation
+
+**Purpose**: One opinionated workspace queue. Not saved filters.
+
+**For a small model.** Read this phase only. Pure helper first, then page, then nav. No new backend endpoint.
+
+**Independent Test**: Seed overdue, due today, in progress, deferred with due ≤ today, high priority unanswered, deferred with future due, annotation, answered. Next shows five sections in spec order; omits the last three kinds of items; opening a row lands on the US8 question page.
+
+**Do not**: add saved filters, query builders, new API routes, or new DB columns.
+
+### Tests for Phase 15 (write first; they must fail)
+
+- [ ] T150 [P] [US9] Add `web/tests/unit/nextQueue.test.ts` covering `buildNextQueue` in `web/src/lib/questions/nextQueue.ts` with a fixed `today` of `2026-04-01`:
+  - overdue: `dueDate < today` and status not `deferred`
+  - due today: `dueDate === today` and status not `deferred`
+  - in progress: `in_progress` not already in overdue/due today
+  - deferred ready: `deferred` and `dueDate <= today`
+  - high priority: `high` or `urgent`, status `unanswered` or `in_progress`, not already listed
+  - omit: `answered`, `kind=annotation`, `deferred` with `dueDate > today`, `deferred` with null due date
+  - hide empty sections; never duplicate an id across sections
+- [ ] T151 [P] [US9] Add `web/tests/component/NextQueue.test.ts` for empty guidance and section headings. Add `tests/e2e/us9-next-queue.spec.ts`: one overdue question appears under Overdue; an answered question does not; clicking opens `/questions/{id}`.
+
+### Implementation for Phase 15
+
+- [ ] T152 [P] [US9] Create `web/src/lib/questions/nextQueue.ts`.
+  **Do:** Export `buildNextQueue(questions: Question[], today: string): { id: string; title: string; items: Question[] }[]`. `today` is `YYYY-MM-DD`. Filter to active questions only (`kind` missing or `question`; status `unanswered` | `in_progress` | `deferred`). Apply FR-047. Return only non-empty sections with titles `Overdue`, `Due today`, `In progress`, `Deferred ready`, `High priority`.
+  **Verify:** `npm --prefix web test -- --run tests/unit/nextQueue.test.ts`
+
+- [ ] T153 [US9] Create `web/src/routes/next/+page.svelte`.
+  **Read:** `web/src/routes/questions/+page.svelte` for workspace loading/error/retry; `web/src/lib/api/questions.ts`; `web/src/lib/stores/workspace.ts`.
+  **Do:** Require current workspace. `questionsApi.list({ workspaceId, status: ['unanswered','in_progress','deferred'], kind: 'question', pageSize: 200 })`. Follow `nextCursor` up to 5 pages. `today = new Date().toISOString().slice(0, 10)`. Render sections from `buildNextQueue`. Each item links like Phase 13 (`/questions/{id}?noteId=...`). Empty page: `Nothing in Next. Capture a question from a note, or set a due date.` If `nextCursor` remains after 5 pages, show `Showing the first loaded questions.` Loading/error/retry required. No filter widgets.
+  **Verify:** `npm --prefix web test -- --run tests/unit/nextQueue.test.ts tests/component/NextQueue.test.ts`
+
+- [ ] T154 [US9] Add Next to `web/src/lib/components/AppNavigation.svelte` after Active Questions: `href={`/next${workspace}`}` labelled `Next`, `class:active={page.url.pathname === '/next'}` (do not use `startsWith` if it would clash). Only when `$workspaceReady`.
+  **Verify:** `npx playwright test tests/e2e/us9-next-queue.spec.ts tests/e2e/us8-answer-in-context.spec.ts`
+
+**Landmines:** Client-side grouping only. Do not add `queue=` to OpenAPI. Annotations never appear (`kind=question` on the list call). Do not log question text.
+
+**Checkpoint**: `/next` is a usable daily queue that opens answer-in-context.
+
+---
+
+## Phase 16: Deferred requires a resume date (US10) — gap remediation
+
+**Purpose**: Status `deferred` requires a due date. No new status. Legacy null due dates still load.
+
+**For a small model.** Domain rule first, then every `ValidateTransition` caller, then UI. Do not migrate old rows.
+
+**Independent Test**: Save as Deferred with no date → rejected. With a date → saved. Next omits future-deferred and includes deferred-ready. Opening a legacy deferred question with null due date still works.
+
+### Tests for Phase 16 (write first; they must fail)
+
+- [ ] T155 [P] [US10] Extend `server/internal/domain/question_lifecycle_test.go`: `deferred` with empty/nil due date fails; `deferred` with `YYYY-MM-DD` succeeds; `answered` still requires an answer and does not require a due date; `unanswered` / `in_progress` still allow null due date.
+- [ ] T156 [P] [US10] Extend `web/tests/component/QuestionLifecycle.test.ts`: choosing Deferred with no date shows `A resume date is required to defer a question.` and does not call update; with a date, save sends `status: 'deferred'` and that `dueDate`. Extend `tests/e2e/us3-question-lifecycle.spec.ts` or add `tests/e2e/us10-defer-date.spec.ts` for the rejection + success path.
+
+### Implementation for Phase 16
+
+- [ ] T157 [US10] Update `server/internal/domain/question_lifecycle.go`.
+  **Read:** `ValidateTransition` and every caller (`rg ValidateTransition server`).
+  **Do:** `ValidateTransition(from, to, answer, dueDate *string)`. If `to == StatusDeferred`, trimmed due date must be non-empty `YYYY-MM-DD`; else return `a resume date is required to defer a question`. Do **not** reject existing rows on read. Update all callers so compile succeeds. Keep answer-required-for-answered behavior.
+  **Do not:** add a column; do not rewrite import of legacy deferred rows to fail.
+  **Also edit:** `specs/001-track-note-questions/data-model.md` lifecycle table if the deferred-due-date row is missing.
+  **Verify:** `go -C server test ./internal/domain -count=1`
+
+- [ ] T158 [US10] Map the domain error through `server/internal/service/lifecycle.go` and `server/internal/api/handlers/lifecycle.go` (or the existing question update handler) to a 422 field error on `dueDate` / `status`. Preserve optimistic `version` conflicts.
+  **Verify:** `go -C server test ./internal/domain ./internal/store/sqlite ./internal/api/handlers -count=1`
+
+- [ ] T159 [US10] Update `web/src/lib/components/QuestionLifecycle.svelte`.
+  **Read:** that file and `web/src/lib/components/QuestionSchedule.svelte` (due date already exists).
+  **Do:** When `status === 'deferred'`, show `<label for="resume-date">Resume date</label> <input id="resume-date" type="date">` bound to a local due date (initialize from `question.dueDate`). On save, if deferred and no date, set the error string above and return without calling the API. Include `dueDate` on `questionsApi.update`. Do not apply this to annotations (`question.kind === 'annotation'` skips the rule).
+  **Verify:** `npm --prefix web test -- --run tests/component/QuestionLifecycle.test.ts` then the Phase 16 Playwright file.
+
+**Landmines:** Read of null `due_date` must still work. Do not auto-write a date on load. JSON unknown fields 400. Do not log answer text.
+
+**Checkpoint**: Deferred without a date cannot be saved; Next can wake deferred items by date.
+
+---
+
+## Phase 17: Resolved highlights + insert answer into note (US11) — gap remediation
+
+**Purpose**: Answered wraps look resolved. Optional, idempotent “Insert answer into note”. Answering does not mutate the note by itself.
+
+**For a small model.** Helper first, then render attributes, then a button on the card. Do not auto-insert on save.
+
+**Independent Test**: Answer a question → highlight style changes, note body unchanged. Insert → blockquote after wrap. Insert again → body unchanged. Reopen → active highlight style; blockquote remains.
+
+### Tests for Phase 17 (write first; they must fail)
+
+- [ ] T160 [P] [US11] Add `web/tests/unit/insertAnswer.test.ts` for `insertAnswerAfterDirective` in `web/src/lib/editor/directives.ts`: wrapped id inserts `\n\n` + blockquote of the answer immediately after `{{/question}}`; multiline answer prefixes each line with `> `; second call returns the same markdown; unknown id returns markdown unchanged; empty answer throws and does not mutate.
+- [ ] T161 [P] [US11] Extend `web/tests/unit/markdown-security.test.ts` or add `web/tests/unit/markdown-status.test.ts`: `renderNoteHtml(md, questions)` sets `data-status` and `data-kind` on the mark; raw `{{question:` still absent. Extend `web/tests/component/AnnotationCard.test.ts`: answered question shows Insert answer into note; clicking calls `onInsertAnswer` once.
+- [ ] T162 [P] [US11] Add `tests/e2e/us11-resolved-highlight.spec.ts`: answer, reload note, mark has resolved styling or `data-status="answered"`; insert once; reload; blockquote visible; answer save without insert does not add a blockquote.
+
+### Implementation for Phase 17
+
+- [ ] T163 [P] [US11] Add `insertAnswerAfterDirective(markdown: string, id: string, answer: string): string` to `web/src/lib/editor/directives.ts`.
+  **Do:** Trim answer; throw if empty. Find the wrapped directive with that lowercase id. If the text after that wrap (skip one run of whitespace) already starts with a `>` line that contains the trimmed answer, return markdown unchanged. Else splice `\n\n` + answer lines each prefixed with `> ` + `\n` immediately after `{{/question}}`. Bare (unwrapped) tokens: insert the same blockquote immediately after the opening token. Reconstruct via `tokenizeDirectives` or index math; do not invent a second wrap.
+  **Verify:** `npm --prefix web test -- --run tests/unit/insertAnswer.test.ts`
+
+- [ ] T164 [US11] Teach `renderNoteHtml` statuses.
+  **Read:** `web/src/lib/editor/markdown.ts`.
+  **Do:** `renderNoteHtml(markdown: string, questions: { id: string; status?: string; kind?: string }[] = [])`. On `<mark>` add `data-status` (default `unanswered`) and `data-kind` (default `question`). Add `data-status` and `data-kind` to DOMPurify `ADD_ATTR`. Existing callers still work with one argument.
+  **CSS:** In `NoteReader.svelte` and `NoteExcerpt.svelte`: `mark[data-status="answered"]` background `#d1fae5`, border-bottom `#047857`. Leave active marks as they are.
+  **Do:** Pass `questions` into `renderNoteHtml` from `NoteReader` (it already has `questions`). Pass question status into `NoteExcerpt` (`export let status = ''` or a questions array).
+  **Verify:** `npm --prefix web test -- --run tests/unit/markdown-security.test.ts tests/component/NoteReader.test.ts tests/component/NoteExcerpt.test.ts`
+
+- [ ] T165 [US11] Insert from the card, user-initiated.
+  **Read:** `web/src/lib/components/AnnotationCard.svelte`, `web/src/lib/editor/NoteEditor.svelte`, `web/src/lib/components/QuestionLifecycle.svelte`.
+  **Do:** If `question.kind !== 'annotation'` and `question.status === 'answered'` and `question.answerMarkdown`, show button `Insert answer into note`. `export let onInsertAnswer: (() => Promise<void> | void) | undefined`. In `NoteEditor` (read mode owns the body): implement `insertAnswer(question)` using `insertAnswerAfterDirective`, rebuild `questionLinks` from `directiveIds` (order must still match), `save()`. Do not change question status. Wire the callback through `NoteReader` → `AnnotationCard`. If insert is clicked on the question context page, apply it to the loaded note via `notesApi.update` with current `version` and rebuilt links from that note’s body; skip if the question is unlinked.
+  **Do not:** insert inside `QuestionLifecycle` save.
+  **Verify:** component tests then `npx playwright test tests/e2e/us11-resolved-highlight.spec.ts tests/e2e/us8-answer-in-context.spec.ts`
+
+**Landmines:** `questionLinks` must match directive order after insert (blockquote is not a directive). Idempotent insert. Never log the answer. `/notes/new` labels unchanged.
+
+**Checkpoint**: Answered passages look resolved; insert is optional and safe to click twice.
+
+---
+
+## Phase 18: Sturdier passage matching (US12) — gap remediation
+
+**Purpose**: Wrap the source Markdown span that produced the rendered selection. Fail with no mutation when it cannot be mapped.
+
+**For a small model.** Pure function in `directives.ts` only, then switch `wrapSelection` to it, then show the error in the composer. No schema.
+
+**Independent Test**: Note body `This is **bold** text.` Select rendered `bold`. Capture succeeds and wrap includes `**bold**`. Select `zzz` → error, no new question, body unchanged.
+
+### Tests for Phase 18 (write first; they must fail)
+
+- [ ] T166 [P] [US12] Extend `web/tests/unit/directives.test.ts`:
+  - exact match still wraps the first occurrence
+  - markdown `**bold**` + selection `bold` wraps `**bold**`
+  - markdown `hello   world` + selection `hello world` wraps the original spaced span
+  - no match throws `Could not find that passage in the note. Try selecting plain text.`
+  - empty selection throws the existing empty error
+  - wrap still produces `{{question:id}}…{{/question}}` and `directiveIds` order is preserved when a wrap is added among existing directives
+- [ ] T167 [P] [US12] Extend `web/tests/component/NoteReader.test.ts`: when `onCapture` rejects with that error, composer shows it and no success path runs. Playwright: `tests/e2e/us12-passage-match.spec.ts` for the bold case (use a note whose body is exactly `This is **bold** text.`).
+
+### Implementation for Phase 18
+
+- [ ] T168 [US12] Add `findSelectionInMarkdown(markdown: string, selectedText: string): { index: number; length: number }` in `web/src/lib/editor/directives.ts`.
+  **Do, in order:**
+  1. Trimmed selection empty → throw `selection is empty`.
+  2. `markdown.indexOf(selectedText)` ≥ 0 → `{ index, length: selectedText.length }`.
+  3. Collapse whitespace (runs of whitespace → one space) on both strings with an index map back to markdown; if the collapsed selection occurs, return the mapped `[start, end)` in the original markdown.
+  4. Build a readable string from markdown by skipping `*`, `_`, and `` ` `` and collapsing whitespace, mapping each readable index to a markdown index; find collapsed selection there; return mapped `[start, end)` so markers stay inside the wrap (`**bold**` not `bold`).
+  5. Else throw `Could not find that passage in the note. Try selecting plain text.`
+  First match wins. Then change `wrapSelection` to slice `markdown[index, index+length]` as the wrapped span.
+  **Do not:** parse links, headings, or HTML. Do not add DB columns.
+  **Verify:** `npm --prefix web test -- --run tests/unit/directives.test.ts`
+
+- [ ] T169 [US12] Surface the error in `web/src/lib/editor/NoteEditor.svelte` `captureFromReader` and `web/src/lib/editor/NoteReader.svelte` `submitComposer` (composerError already exists). If wrap throws, do not `questionsApi.create` first — **reorder capture** so wrap is resolved **before** create, or delete the created question is NOT allowed; instead compute wrap on a copy first, then create, then save. Preferred order: `findSelectionInMarkdown` → `questionsApi.create` → wrap with returned id → save. If save fails, keep existing failed-save draft behavior.
+  **Verify:** unit + `npx playwright test tests/e2e/us12-passage-match.spec.ts tests/e2e/us1-notes-highlight.spec.ts`
+
+**Landmines:** Create-after-failed-wrap would orphan questions — match before create. `questionLinks` order. Do not log the passage.
+
+**Checkpoint**: Formatted-text selections wrap source Markdown; unmappable selections mutate nothing.
+
+---
+
+## Phase 19: Link existing + attach later from reading (US12) — gap remediation
+
+**Purpose**: Reading toolbar can link an existing same-workspace question. Active Questions can create an unlinked question. Reading can attach a passage later.
+
+**For a small model.** Reuse `QuestionPicker.svelte`. POST `/api/v1/questions` already creates without a note. Do not add endpoints.
+
+**Independent Test**: Question A on note 1. From note 2 reading, link A onto a sentence — one question, two linked notes. From Active Questions create unlinked B. From a note, attach B to a passage — B is no longer unlinked.
+
+**Do not:** link a question already on this note; link annotations; change kind; allow cross-workspace links.
+
+### Tests for Phase 19 (write first; they must fail)
+
+- [ ] T170 [P] [US12] Extend `web/tests/component/NoteReader.test.ts`: toolbar has `Link existing question`; it opens the picker; choosing an item calls `onLinkExisting(passage, question)`. Extend `web/tests/component/QuestionPicker.test.ts` if needed. Add `web/tests/component/ActiveQuestions.test.ts` (or extend it): `New question` without a passage posts only question fields (no note wrap).
+- [ ] T171 [P] [US12] Add `tests/e2e/us12-link-attach.spec.ts`: (1) link existing question onto a second note from reading; both notes listed on the question page; (2) create unlinked from Active Questions; it appears there; attach to a passage from reading; highlight opens the same question.
+
+### Implementation for Phase 19
+
+- [ ] T172 [US12] Reading toolbar + picker.
+  **Read:** `NoteReader.svelte`, `NoteEditor.svelte` `captureFromReader`, `QuestionPicker.svelte`, `questionsApi.list`.
+  **Do:** Add toolbar button `Link existing question`. Opens picker (reuse `QuestionPicker`) with workspace questions `kind: 'question'` excluding ids already in `directiveIds(markdown)`. Add `export let onLinkExisting: ((passage: string, question: Question) => Promise<Question | void>) | undefined`. In `NoteEditor`, `linkExistingFromReader`: skip `questionsApi.create`; `findSelectionInMarkdown` / `wrapSelection` first; rebuild `questionLinks` from `directiveIds`; save; return the same question. Duplicate link: throw `That question is already in this note.` and do not save. Keep Cancel/Escape/outside-click dismissal for the picker.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/NoteEditor.test.ts tests/component/QuestionPicker.test.ts`
+
+- [ ] T173 [US12] Unlinked create on `web/src/routes/questions/+page.svelte`.
+  **Do:** Button `New question` labelled. Short form: question text required. `questionsApi.create({ workspaceId, questionText, kind: 'question', status: 'unanswered', priority: 'none', tagIds: [] })`. No note update. Reload the list. Empty text does not POST.
+  **Do not:** set status answered; do not attach a fake directive.
+  **Verify:** component test + existing US1/US3 e2e still pass.
+
+- [ ] T174 [US12] Attach is the same as link-existing (T172). Ensure unlinked questions appear in the picker (`QuestionPicker` already shows `Unlinked`). After attach, Active Questions still shows one row for that id.
+  **Verify:** `npx playwright test tests/e2e/us12-link-attach.spec.ts tests/e2e/us2-shared-question.spec.ts tests/e2e/us1-notes-highlight.spec.ts`
+
+**Landmines:** Same workspace only (list is already workspace-scoped). `questionLinks` 1:1 with directives. Kind immutable. Do not wrap with an annotation id from this picker.
+
+**Checkpoint**: Shared questions and later-attached passages work from reading view.
+
+---
+
+## Phase 20: Keyboard-first capture (US12) — gap remediation
+
+**Purpose**: Selection shortcuts on the reading view; do not steal keys while typing.
+
+**For a small model.** Edit `NoteReader` keydown only, plus document shortcuts. Do not add a keymap framework.
+
+**Independent Test**: Select text, press Q → question composer; Escape → dismiss; select, A → annotation composer; select, L → link picker. Type the letter Q inside the composer — it inserts Q. `/notes/new` labels unchanged.
+
+### Tests for Phase 20 (write first; they must fail)
+
+- [ ] T175 [P] [US12] Extend `web/tests/component/NoteReader.test.ts`: with a selection and no composer, `keydown` Q opens question composer, A annotation, L picker (if `onLinkExisting` provided), Escape closes toolbar. With composer open or target `input`/`textarea`, Q does not toggle kind. Add `tests/e2e/us12-keyboard-capture.spec.ts` for Q then Escape on a selected sentence.
+
+### Implementation for Phase 20
+
+- [ ] T176 [US12] Extend `onWindowKeydown` in `web/src/lib/editor/NoteReader.svelte`.
+  **Do:** If `event.defaultPrevented`, return. If target is `input, textarea, select, [contenteditable]`, return (Escape may still close composer — keep current Escape behavior when composer is open). If composer open, ignore Q/A/L. If no `selectedPassage` and no `showToolbar`, ignore Q/A/L. Otherwise: `q`/`Q` → `openComposer('question')`; `a`/`A` → `openComposer('annotation')`; `l`/`L` → open link picker if `onLinkExisting` exists. `preventDefault` only when handling those keys. Do not handle shortcuts with Ctrl/Meta/Alt.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts` then `npx playwright test tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/accessibility-notes.spec.ts`
+
+- [ ] T177 [P] [US12] Add a one-line hint on the reading toolbar: `Q ask · A annotate · L link · Esc cancel`. No new route.
+  **Verify:** NoteReader component test asserts the hint exists when the toolbar is visible.
+
+**Landmines:** Do not steal keys in Title/Note fields. Do not change `/notes/new`. Keep existing Escape/outside-click dismissal.
+
+**Checkpoint**: Capture is keyboard-complete without breaking typing or accessibility labels.
+
+---
+
+## Phase 21: Map, spec trace, and regression (after US8–US12)
+
+**Purpose**: Keep the mental model honest after the new slices.
+
+- [ ] T178 [P] Refresh [`PROJECT_MAP.md`](../../PROJECT_MAP.md): remaining-gaps list must match reality; add file pointers for `QuestionContext.svelte`, `NoteExcerpt.svelte`, `NoteQuestionRail.svelte`, `nextQueue.ts`, `/next`, `findSelectionInMarkdown`, and keyboard shortcuts. Known-bugs table: only real failures.
+- [ ] T179 Trace FR-041 through FR-055 and SC-011 through SC-014 to tests in `specs/001-track-note-questions/traceability.md`. Do not invent passing evidence.
+- [ ] T180 Run the new Playwright files plus `tests/e2e/us1-notes-highlight.spec.ts`, `tests/e2e/us3-question-lifecycle.spec.ts`, `tests/e2e/us2-shared-question.spec.ts`, `tests/e2e/accessibility-notes.spec.ts`. Record results in `specs/001-track-note-questions/validation-results.md` only for runs you actually executed.
+
+**Checkpoint**: A new session can implement leftover tasks from the map without rediscovering the tree.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies
@@ -427,6 +744,15 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 10. **Phase 10 — Polish** depends on all stories intended for the release.
 11. **Phase 11 — Notes list + highlight/annotation** depends on US1 capture primitives (notes/questions API already exist). Implement after the current app runs. Start the session from `PROJECT_MAP.md`. T132 (notes list) can ship before T131/T133–T135.
 12. **Phase 12 — Note editing, capture dismissal, filters, and tag discovery** depends on Phase 11 plus the existing note-tag persistence and search primitives; implement T138 as a coordinated frontend/API slice.
+13. **Phase 13 — Answer in context** depends on Phase 11 reading view and US3 lifecycle. No API changes.
+14. **Phase 14 — Note-local rail** depends on Phase 13 `focusQuestionId` / card opening, but may start after T148’s NoteReader prop exists.
+15. **Phase 15 — Next queue** depends on Phase 13 list links (T144) so rows open in context. Uses existing list API only.
+16. **Phase 16 — Deferred resume date** depends on US3 lifecycle. Implement before relying on Next’s Deferred ready section in manual demos; Next grouping (T152) already encodes the rule.
+17. **Phase 17 — Resolved highlights / insert answer** depends on Phase 11 wraps and US3 answered status. Insert on the context page needs Phase 13.
+18. **Phase 18 — Passage matching** depends on Phase 11 `wrapSelection`. Do this before Phase 19 if possible so link-existing uses the same matcher.
+19. **Phase 19 — Link/attach from reading** depends on Phase 18 matcher and US2 picker. Unlinked create uses existing POST `/questions`.
+20. **Phase 20 — Keyboard capture** depends on Phase 19 toolbar/picker so L has a target; Q/A/Escape can ship after Phase 11 if L is ignored when `onLinkExisting` is missing.
+21. **Phase 21 — Map/trace** depends on the phases you actually shipped.
 
 ### User story dependency graph
 
@@ -438,6 +764,11 @@ Setup → Foundation → US1 Workspace bootstrap → US1 Capture
 
 US1 + US2 + US3 + US4 + US5 + US6 → US7 Import/Export → Polish
                                                       ↘ Phase 11 Notes list + highlights (uses US1 APIs)
+                                                         → Phase 13 context → Phase 14 rail
+                                                         → Phase 15 Next (after T144)
+                                                         → Phase 16 defer date (US3)
+                                                         → Phase 17 resolved / insert
+                                                         → Phase 18 wrap match → Phase 19 link/attach → Phase 20 keys
 ```
 
 ### Within each user story
@@ -514,6 +845,21 @@ Parallel after failing tests: T130 contracts | T131 kind backend | T132 notes li
 Sequential UX: T133 wrap/render → T134 reader/card/editor → T135 create+filter → T136 refresh PROJECT_MAP.md
 ```
 
+### Phases 13–20 (small-model slices)
+
+```text
+One agent = one task. Never start T14x while T13x tests are unwritten.
+13: T139–T140 tests → T141 NoteExcerpt → T142 QuestionContext → T143 page → T144 list links
+14: T145–T146 tests → T147 rail → T148 NoteReader focus → T149 editor wire
+15: T150–T151 tests → T152 helper → T153 /next page → T154 nav
+16: T155–T156 tests → T157 domain → T158 API mapping → T159 lifecycle UI
+17: T160–T162 tests → T163 insert helper → T164 render/CSS → T165 card + save
+18: T166–T167 tests → T168 findSelection → T169 wrap-before-create
+19: T170–T171 tests → T172 link existing → T173 unlinked create → T174 attach = link
+20: T175 tests → T176 keydown → T177 toolbar hint
+21: T178 map → T179 trace → T180 only tests you ran
+```
+
 ---
 
 ## Implementation Strategy
@@ -542,6 +888,9 @@ This is the smallest useful slice, but it is not the complete product MVP descri
 4. **US6** → safe destructive operations.
 5. **US7** → user-controlled portability and restoration.
 6. **Polish** → measured success criteria and release evidence.
+7. **Phase 13–14** → answer beside the passage; next gap on the note.
+8. **Phase 15–16** → Next queue and deferred resume dates.
+9. **Phase 17–20** → resolved highlights, sturdier wrap, link/attach, keyboard.
 
 ### Team parallelism
 
@@ -565,3 +914,4 @@ All streams must update the same OpenAPI contract and shared fixtures in coordin
 - Never log note content, question text, or answer content.
 - Commit after each task or small logical group and run affected tests at every checkpoint.
 - Phase 11 is gap remediation on top of a working US1–US7 tree. A new implementation session must read `PROJECT_MAP.md` first and follow its file map rather than rereading the repository.
+- Phases 13–20 are further gap remediation (US8–US12). A new session reads `PROJECT_MAP.md`, **only the current phase in this file**, and only named files. One task per session for small models. Do not start a later phase to “also add” extra product ideas (AI, flashcards, saved filters, Feynman modes).
