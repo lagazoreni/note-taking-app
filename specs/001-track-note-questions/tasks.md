@@ -428,7 +428,7 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 
 ### Implementation for Phase 13
 
-- [ ] T141 [P] [US8] Create `web/src/lib/components/NoteExcerpt.svelte`.
+- [X] T141 [P] [US8] Create `web/src/lib/components/NoteExcerpt.svelte`.
   **Read:** `web/src/lib/editor/markdown.ts` (`renderNoteHtml`).
   **Do:** `export let markdown = ''`; `export let questionId = ''`. Render sanitized HTML in `<article aria-label="Source note">`. After markdown/questionId change, `document.querySelector('mark[data-annotation-id="' + questionId + '"]')?.scrollIntoView({ block: 'center' })`.
   **Do not:** import `NoteReader.svelte`; no toolbar, composer, or capture.
