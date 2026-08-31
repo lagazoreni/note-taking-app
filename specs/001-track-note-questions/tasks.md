@@ -424,7 +424,7 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 ### Tests for Phase 13 (write first; they must fail)
 
 - [X] T139 [P] [US8] Add `web/tests/component/NoteExcerpt.test.ts`: render markdown with a wrapped directive; with `questionId` set, the `mark[data-annotation-id]` exists; no “Ask a question” / “Add annotation” buttons. Add `web/tests/component/QuestionContext.test.ts`: linked question shows note title and `QuestionLifecycle`; unlinked question shows text “currently unlinked” and still shows `QuestionLifecycle`; two `linkedNotes` render a control to switch notes.
-- [ ] T140 [P] [US8] Add Playwright `tests/e2e/us8-answer-in-context.spec.ts`: create workspace + note + one highlight question; visit Active Questions; click the question; assert the source passage text is visible and an Answer field is visible on the same page. Keep `tests/e2e/accessibility-notes.spec.ts` passing.
+- [X] T140 [P] [US8] Add Playwright `tests/e2e/us8-answer-in-context.spec.ts`: create workspace + note + one highlight question; visit Active Questions; click the question; assert the source passage text is visible and an Answer field is visible on the same page. Keep `tests/e2e/accessibility-notes.spec.ts` passing.
 
 ### Implementation for Phase 13
 
