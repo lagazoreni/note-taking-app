@@ -18,15 +18,16 @@
 		error = '';
 		try {
 			const loadedQuestion = question ?? (await questionsApi.get(questionId));
-			question = loadedQuestion;
+			const linkedNotes = loadedQuestion.linkedNotes ?? [];
+			question = linkedNotes === loadedQuestion.linkedNotes ? loadedQuestion : { ...loadedQuestion, linkedNotes };
 			const requestedNoteId = page.url.searchParams.get('noteId');
-			const requestedLinkedNoteId = requestedNoteId && loadedQuestion.linkedNotes.some((linked) => linked.id === requestedNoteId)
+			const requestedLinkedNoteId = requestedNoteId && linkedNotes.some((linked) => linked.id === requestedNoteId)
 				? requestedNoteId
 				: undefined;
-			const selectedLinkedNoteId = selectedNoteId && loadedQuestion.linkedNotes.some((linked) => linked.id === selectedNoteId)
+			const selectedLinkedNoteId = selectedNoteId && linkedNotes.some((linked) => linked.id === selectedNoteId)
 				? selectedNoteId
 				: undefined;
-			const noteId = selectedLinkedNoteId ?? requestedLinkedNoteId ?? loadedQuestion.linkedNotes[0]?.id;
+			const noteId = selectedLinkedNoteId ?? requestedLinkedNoteId ?? linkedNotes[0]?.id;
 			selectedNoteId = noteId ?? '';
 			note = noteId ? await notesApi.get(noteId) : null;
 		} catch (cause) {
@@ -39,7 +40,8 @@
 		void load();
 	});
 	function saved(value: Question) {
-		question = value;
+		const linkedNotes = value.linkedNotes ?? [];
+		question = linkedNotes === value.linkedNotes ? value : { ...value, linkedNotes };
 	}
 	async function selectNote(id: string) {
 		selectedNoteId = id;
