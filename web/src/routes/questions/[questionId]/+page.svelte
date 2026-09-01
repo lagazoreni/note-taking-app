@@ -2,25 +2,57 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { questionsApi } from '$lib/api/questions';
+	import { notesApi } from '$lib/api/notes';
+	import type { Note } from '$lib/types/note';
 	import type { Question } from '$lib/types/question';
-	import QuestionLifecycle from '$lib/components/QuestionLifecycle.svelte';
-	import QuestionSchedule from '$lib/components/QuestionSchedule.svelte';
+	import QuestionContext from '$lib/components/QuestionContext.svelte';
 	let question: Question | null = null;
+	let note: Note | null = null;
+	let selectedNoteId = '';
 	let questionId = '';
 	let loading = true;
 	let error = '';
 	$: questionId = page.params.questionId ?? '';
-	onMount(async () => {
+	async function load() {
+		loading = true;
+		error = '';
 		try {
-			question = await questionsApi.get(questionId);
+			const loadedQuestion = question ?? (await questionsApi.get(questionId));
+			question = loadedQuestion;
+			const requestedNoteId = page.url.searchParams.get('noteId');
+			const requestedLinkedNoteId = requestedNoteId && loadedQuestion.linkedNotes.some((linked) => linked.id === requestedNoteId)
+				? requestedNoteId
+				: undefined;
+			const selectedLinkedNoteId = selectedNoteId && loadedQuestion.linkedNotes.some((linked) => linked.id === selectedNoteId)
+				? selectedNoteId
+				: undefined;
+			const noteId = selectedLinkedNoteId ?? requestedLinkedNoteId ?? loadedQuestion.linkedNotes[0]?.id;
+			selectedNoteId = noteId ?? '';
+			note = noteId ? await notesApi.get(noteId) : null;
 		} catch (cause) {
 			error = cause instanceof Error ? cause.message : 'Could not load question';
 		} finally {
 			loading = false;
 		}
+	}
+	onMount(() => {
+		void load();
 	});
 	function saved(value: Question) {
 		question = value;
+	}
+	async function selectNote(id: string) {
+		selectedNoteId = id;
+		note = null;
+		error = '';
+		try {
+			note = await notesApi.get(id);
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Could not load note';
+		}
+	}
+	function retry() {
+		void load();
 	}
 </script>
 
@@ -29,16 +61,17 @@
 		class="error"
 	>
 		{error}
+		<button type="button" onclick={retry}>Retry</button>
 	</div>{:else if question}<section class="page">
 		<p class="eyebrow">Question</p>
 		<h1>{question.questionText}</h1>
-		<QuestionLifecycle {question} onSave={saved} /><QuestionSchedule {question} onSave={saved} />
-		<div class="linked">
-			<h2>Source notes</h2>
-			{#each question.linkedNotes as note}<a href={`/notes/${note.id}`}>{note.title}</a>{:else}<p>
-					This question is currently unlinked.
-				</p>{/each}
-		</div>
+		<QuestionContext
+			{question}
+			{note}
+			selectedNoteId={selectedNoteId}
+			onSelectNote={selectNote}
+			onSave={saved}
+		/>
 	</section>{/if}
 
 <style>

@@ -32,7 +32,13 @@
 					>{#if overdue(question)}<span class="overdue">Overdue · {question.dueDate}</span
 						>{:else if question.dueDate}<span>Due {question.dueDate}</span>{/if}
 				</div>
-				<h2><a href={`/questions/${question.id}`}>{question.questionText}</a></h2>
+				<h2>
+					<a
+						href={question.linkedNotes[0]
+							? `/questions/${question.id}?noteId=${question.linkedNotes[0].id}`
+							: `/questions/${question.id}`}
+					>{question.questionText}</a>
+				</h2>
 				{#if question.answerMarkdown}<p class="answer">{question.answerMarkdown}</p>{/if}
 				<div class="links">
 					{#each question.linkedNotes as note}<a href={`/notes/${note.id}`}>↳ {note.title}</a

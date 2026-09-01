@@ -39,19 +39,19 @@
 
 Current page already loads `questionsApi.get` in `onMount`, keeps `saved(value)` to replace `question`, and renders `QuestionLifecycle` + `QuestionSchedule` + a source-notes list. `QuestionContext.svelte` already exists with `export let question`, `note`, `selectedNoteId`, `onSelectNote`, `onSave`. Match `export let`. Do not use `NoteReader` here.
 
-- [ ] T143 [US8] Load the source note and render `QuestionContext` on `web/src/routes/questions/[questionId]/+page.svelte`.
+- [x] T143 [US8] Load the source note and render `QuestionContext` on `web/src/routes/questions/[questionId]/+page.svelte`.
   **Read:** that page, `web/src/lib/components/QuestionContext.svelte`, `web/src/lib/api/questions.ts`, `web/src/lib/api/notes.ts`, `$app/state` `page`.
   **Do:** Keep `questionsApi.get`. After the question loads, `noteId` = `page.url.searchParams.get('noteId')` if that id is in `question.linkedNotes`, else `question.linkedNotes[0]?.id`. If `noteId`, load `notesApi.get` into `note`; else `note = null`. Replace the lifecycle/schedule/source-notes block with `<QuestionContext {question} {note} selectedNoteId={noteId ?? ''} onSelectNote={...} onSave={saved} />`. `onSelectNote` may only set `selectedNoteId` in this task (reload is T143a). Keep the existing loading and error UI.
   **Do not:** add API fields; do not log question/note bodies; do not change `QuestionContext.svelte` props.
   **Verify:** `npm --prefix web test -- --run tests/component/QuestionContext.test.ts tests/component/NoteExcerpt.test.ts`
 
-- [ ] T143a [US8] Reload the note when the context switcher changes.
+- [x] T143a [US8] Reload the note when the context switcher changes.
   **Read:** `web/src/routes/questions/[questionId]/+page.svelte` only.
   **Do:** `onSelectNote(id)` sets `selectedNoteId`, loads `notesApi.get(id)`, and assigns `note`. Keep the current question. If the page has no retry control, add the same Retry pattern as `web/src/routes/questions/+page.svelte` (error + button that re-runs the load). Unlinked questions stay on `note = null` and the existing “currently unlinked” copy inside `QuestionContext`.
   **Do not:** save notes; do not add `NoteReader`.
   **Verify:** `npm --prefix web test -- --run tests/component/QuestionContext.test.ts`
 
-- [ ] T144 [US8] Point list cards at context.
+- [x] T144 [US8] Point list cards at context.
   **Read:** `web/src/lib/components/QuestionList.svelte` only. The title is currently a link to `/questions/{id}` with no query string.
   **Do:** Question title link becomes `/questions/{id}?noteId={firstLinkedNoteId}` when `linkedNotes[0]` exists, else `/questions/{id}`. Accessible name stays the question text.
   **Verify:** `npx playwright test tests/e2e/us8-answer-in-context.spec.ts tests/e2e/us3-question-lifecycle.spec.ts`
