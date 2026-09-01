@@ -4,7 +4,7 @@
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 
-**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. For highlight/annotation work, use Phase 11. For answer-in-context, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phase 13–20 in this file** — read only that phase, then only the files it names. For the no-op Delete note button, use **Phase 22**. Do not scan the whole repo unless the map is stale.
+**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. For highlight/annotation work, use Phase 11. For answer-in-context, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phase 13–20 in this file** — read only that phase, then only the files it names. For the no-op Delete note button, use **Phase 22**; for canonical question-text editing, use **Phase 23**; for the approved optional consequence/why-it-matters behavior, use **Phase 24**. Do not scan the whole repo unless the map is stale.
 
 **Tests**: Automated tests are included because the project constitution requires unit, integration, API contract, browser workflow, and container smoke coverage. Within each story, create the listed tests first and verify they fail for the expected missing behavior before implementation.
 
@@ -768,6 +768,64 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 
 ---
 
+## Phase 23: Edit canonical question text (dog-food gap remediation)
+
+**Purpose**: Close the dog-food gap where question records can be updated by the API but the user-facing question surfaces do not expose an obvious way to edit the question text. The edit must update the one canonical question, not create a replacement or alter note directives.
+
+**For a small model.** Read `PROJECT_MAP.md` once, this phase only, then only the files named in the current task. Implement one task at a time and run its verify command.
+
+**Independent Test**: Create a question on a note, open it from Active Questions, edit and save its text, and reload the active list, question page, and source-note highlight card. The revised text appears everywhere while the question ID, answer, status, priority, due date, tags, and links remain unchanged. Repeat the edit from the linked note's card. Cancel and blank-text attempts make no request, and a version conflict keeps the draft and does not overwrite newer data.
+
+**Do not**: create a second question, change `questionLinks` or directive order, change lifecycle rules, silently drop answer/status/schedule/tag fields, or broaden this phase to a new consequence field. The existing question update endpoint is the source of truth; do not add a route unless the current contract is actually missing `questionText`.
+
+### Tests for Phase 23 (write first; they must fail)
+
+- [ ] T186 [P] [US2] Extend `web/tests/component/QuestionLifecycle.test.ts`, `web/tests/component/AnnotationCard.test.ts`, and `web/tests/component/QuestionContext.test.ts`: a question exposes an accessible Question text editor, saves a trimmed non-empty value through the supplied save path, preserves the other question fields, reports blank/failed saves without losing the draft, and Cancel performs no mutation. The question highlight card must receive the updated canonical question through its save callback.
+- [ ] T187 [P] [US2] Add `tests/e2e/dog-food-edit-question.spec.ts`: edit a question from its central/detail flow and from a linked-note highlight card, reload each surface, and verify the same question ID has the new text with no duplicate. Include cancel/blank validation and preserve `tests/e2e/accessibility-notes.spec.ts`.
+
+### Implementation for Phase 23
+
+- [ ] T188 [US2] Add the question-text editing control to `web/src/lib/components/QuestionLifecycle.svelte`.
+  **Read:** `web/src/lib/components/QuestionLifecycle.svelte`, `web/src/lib/api/questions.ts`, and `web/src/lib/types/question.ts`.
+  **Do:** Keep a local `questionText` draft initialized from `question.questionText`; render a labelled, keyboard-accessible input or textarea with Save and Cancel behavior; reject whitespace-only text before the API call; send the edited `questionText` together with the current answer, status, priority, due date, tags, and optimistic `version`; update local state only after success; retain failed drafts and surface typed conflict/validation errors.
+  **Do not:** make text editing mutate the note body or link rows, or allow an annotation to be converted into a question.
+  **Verify:** `npm --prefix web test -- --run tests/component/QuestionLifecycle.test.ts`
+
+- [ ] T189 [US2] Propagate canonical question-text saves through all existing question surfaces in `web/src/lib/components/AnnotationCard.svelte`, `web/src/lib/editor/NoteReader.svelte`, `web/src/lib/components/QuestionContext.svelte`, `web/src/routes/questions/[questionId]/+page.svelte`, and the relevant question-list/link components.
+  **Do:** Pass `onSave` into the highlight card, replace the card/context/list's local question with the returned record, invalidate the existing question queries, and ensure the central page heading, linked-note card, and any inline question presentation refresh without a duplicate fetch or stale text. Keep the existing answer/status save behavior and `/notes/new` Title/Note labels unchanged.
+  **Verify:** `npm --prefix web test -- --run tests/component/QuestionLifecycle.test.ts tests/component/AnnotationCard.test.ts tests/component/QuestionContext.test.ts` then `npx playwright test tests/e2e/dog-food-edit-question.spec.ts`
+
+**Landmines:** `questionText` is canonical and must be sent with the current optimistic `version`; preserve all other editable fields when composing the update; do not log question or answer content; question text edits do not rewrite Markdown directives.
+
+**Checkpoint**: A user can edit one canonical question from the central question flow or a linked-note card, and the new text is visible everywhere after reload.
+
+---
+
+## Phase 24: Optional “Why it matters if unanswered” context (dog-food gap remediation)
+
+**Purpose**: Add the approved minimal optional context behind the dog-food example: a short explanation of why a question matters if it remains unanswered. This is informational context, not a second lifecycle or task-management system.
+
+**Status**: The minimal scope is approved. T190 records the decision; T191–T195 remain implementation work. Delete-note behavior is already covered by Phase 22, and question-text editing is covered by Phase 23.
+
+**Approved minimal design**: Add one optional, user-authored **plain-text** value named `consequenceText` (stored as `consequence_text`) to `kind=question`, labelled **Why it matters if unanswered**. It describes the consequence or risk of leaving the question unanswered. Show it in the question highlight card and question detail/answer-in-context controls, hide the field when empty, and allow it to be edited or cleared. Keep it informational only: it must not affect status, answer validation, priority, due date, reminders, or the Next queue. It is searchable and included in export/import. It does not apply to annotations, the note-question rail, or central list rows; deletion previews need no separate consequence presentation because the value follows the question if it is retained and is deleted with the question if the user chooses deletion.
+
+**Independent Test**: Create a question without `consequenceText` and verify the normal workflow is unchanged. Add the value from the question detail or highlight card, view it in both approved surfaces, edit and clear it, and verify the canonical value survives reload, search, and export/import without becoming required for answering. Verify an annotation cannot receive the field and no status, priority, scheduling, reminder, or Next behavior changes.
+
+### Tests and implementation for Phase 24
+
+- [X] T190 [CLARIFICATION] Record the approved minimal scope: `consequenceText` is one optional plain-text consequence/risk-of-not-answering value for `kind=question`, labelled **Why it matters if unanswered**, displayed and edited in the highlight card and question detail/answer-in-context controls, searchable and included in export/import, informational only, and excluded from annotations, rails, and central list rows.
+- [ ] T191 [P] [US3] Add failing domain, repository, API-contract, search, import/export, and component tests for optional `consequenceText`: null/empty values preserve the existing workflow; non-empty text round-trips; whitespace-only input is treated as absent; annotation records cannot receive it; question cards and detail controls display, edit, clear, and retain it; search can find it without duplicating results.
+- [ ] T192 [US3] Update the approved product contracts and model in `spec.md`, `plan.md`, `data-model.md`, `contracts/openapi.yaml`, and `tests/fixtures/contracts/openapi.yaml`: define nullable `consequenceText`/`consequence_text`, the exact label and question-only scope, and the informational/no-lifecycle-side-effects rule. Keep existing records and requests valid when the value is absent.
+- [ ] T193 [US3] Implement nullable `consequence_text` persistence, normalization, question-only validation, API request/response mapping, FTS/search indexing, deterministic export/import, and any required allow-list or deletion-retention behavior across the authoritative Go domain/store/services/handlers. Preserve workspace boundaries and optimistic versions.
+- [ ] T194 [US3] Implement the optional field in the question highlight card and question detail/answer-in-context controls with accessible label **Why it matters if unanswered**, edit/clear behavior, empty-state hiding, failed-save draft preservation, and no automatic changes to lifecycle, scheduling, reminders, priority, or Next. Do not add it to annotation-only UI, the note-question rail, or central list rows.
+- [ ] T195 [US3] Add `tests/e2e/dog-food-question-consequence.spec.ts` covering absent, add, edit, clear, reload, search, and export/import behavior; update traceability/validation evidence only for tests actually run and verify annotations and questions without the value remain fully supported.
+
+**Landmines:** Do not make answering depend on `consequenceText`; do not infer it from an answer or generate it automatically; do not apply it to annotations; do not add the OpenAPI or SQLite field before the contract/model task; treat whitespace-only input as absent; never log question or answer content.
+
+**Checkpoint**: An optional plain-text consequence is available on question cards and detail pages, survives the approved persistence/search/portability paths, and has no effect on required question lifecycle behavior.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies
@@ -794,6 +852,8 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 20. **Phase 20 — Keyboard capture** depends on Phase 19 toolbar/picker so L has a target; Q/A/Escape can ship after Phase 11 if L is ignored when `onLinkExisting` is missing.
 21. **Phase 21 — Map/trace** depends on the phases you actually shipped.
 22. **Phase 22 — Wire Delete note** depends on US1 note get/update and the existing note page. Use US6 preview/execute if those handlers already exist (Phase 8). Do not rebuild deletion backend unless the client has no delete operation to call. Independent of Phases 13–20.
+23. **Phase 23 — Edit canonical question text** depends on the existing US2 question update contract and the Phase 11 highlight card / Phase 13 context surfaces. It is independent of the delete-note wiring and does not require a schema or route change.
+24. **Phase 24 — Optional consequence context** has its minimal scope approved in T190. Implement T191–T195 after the question lifecycle surfaces are available, updating contracts before the schema/API work and preserving the optional, question-only, informational behavior.
 
 ### User story dependency graph
 
@@ -811,6 +871,8 @@ US1 + US2 + US3 + US4 + US5 + US6 → US7 Import/Export → Polish
                                                          → Phase 17 resolved / insert
                                                          → Phase 18 wrap match → Phase 19 link/attach → Phase 20 keys
                                                          → Phase 22 wire Delete note button (US6)
+                                                         → Phase 23 edit canonical question text
+                                                         → Phase 24 optional consequence context (minimal scope approved)
 ```
 
 ### Within each user story
@@ -887,7 +949,7 @@ Parallel after failing tests: T130 contracts | T131 kind backend | T132 notes li
 Sequential UX: T133 wrap/render → T134 reader/card/editor → T135 create+filter → T136 refresh PROJECT_MAP.md
 ```
 
-### Phases 13–22 (small-model slices)
+### Phases 13–24 (small-model slices)
 
 ```text
 One agent = one task. Never start T14x while T13x tests are unwritten.
@@ -901,6 +963,8 @@ One agent = one task. Never start T14x while T13x tests are unwritten.
 20: T175 tests → T176 keydown → T177 toolbar hint
 21: T178 map → T179 trace → T180 only tests you ran
 22: T181–T182 tests → T183 notesApi.delete → T184 wire existing button → T185 navigate/invalidate
+23: T186–T187 tests → T188 question-text editor → T189 surface/state propagation
+24: T190 approved decision → T191 tests → T192 contracts/model → T193 persistence/API/search/import → T194 UI → T195 browser/evidence
 ```
 
 ---
@@ -935,6 +999,8 @@ This is the smallest useful slice, but it is not the complete product MVP descri
 8. **Phase 15–16** → Next queue and deferred resume dates.
 9. **Phase 17–20** → resolved highlights, sturdier wrap, link/attach, keyboard.
 10. **Phase 22** → make the existing Delete note button actually delete (cancel-safe).
+11. **Phase 23** → make canonical question text explicitly editable from central and linked-note surfaces.
+12. **Phase 24** → implement the approved optional plain-text consequence/why-it-matters context without changing question lifecycle behavior.
 
 ### Team parallelism
 
@@ -960,3 +1026,5 @@ All streams must update the same OpenAPI contract and shared fixtures in coordin
 - Phase 11 is gap remediation on top of a working US1–US7 tree. A new implementation session must read `PROJECT_MAP.md` first and follow its file map rather than rereading the repository.
 - Phases 13–20 are further gap remediation (US8–US12). A new session reads `PROJECT_MAP.md`, **only the current phase in this file**, and only named files. One task per session for small models. Do not start a later phase to “also add” extra product ideas (AI, flashcards, saved filters, Feynman modes).
 - Phase 22 is gap remediation for the existing no-op Delete note button (US6). A new session reads `PROJECT_MAP.md`, **only Phase 22**, and only named files. Do not add a second delete button.
+- Phase 23 is dog-food gap remediation for canonical question-text editing. A new session reads `PROJECT_MAP.md`, **only Phase 23**, and only named files; do not redo the existing question update API.
+- Phase 24 has an approved minimal scope: optional plain-text `consequenceText` for questions only. T191–T195 must still update contracts and add tests before implementation; do not broaden the field or give it lifecycle side effects.
