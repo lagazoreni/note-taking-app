@@ -4,7 +4,7 @@
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 
-**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. For highlight/annotation work, use Phase 11. For answer-in-context, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phase 13–20 in this file** — read only that phase, then only the files it names. Do not scan the whole repo unless the map is stale.
+**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. For highlight/annotation work, use Phase 11. For answer-in-context, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phase 13–20 in this file** — read only that phase, then only the files it names. For the no-op Delete note button, use **Phase 22**. Do not scan the whole repo unless the map is stale.
 
 **Tests**: Automated tests are included because the project constitution requires unit, integration, API contract, browser workflow, and container smoke coverage. Within each story, create the listed tests first and verify they fail for the expected missing behavior before implementation.
 
@@ -728,6 +728,46 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 
 ---
 
+## Phase 22: Wire Delete note (US6) — gap remediation
+
+**Purpose**: The note page already shows a Delete note button, but clicking it does nothing. Make that existing control delete the current note (cancel-safe), then leave the note page.
+
+**For a small model.** Do not scan the repo. Do not reread US1–US12 or Phases 11–21 internals. Read `PROJECT_MAP.md` once, this phase only, then only the files named in the current task. Implement **one task**, run its verify command, stop.
+
+**Independent Test**: Create a workspace and a note. Open the note. Click Delete note, then cancel — the note is unchanged and still listed under Notes. Click Delete note again and confirm — the app leaves the editor, `/notes` no longer lists that note, and opening its old URL does not show the editor. A note that has questions still deletes; the user is not stuck on a dead button.
+
+**Do not**: add a second Delete note button; change capture, highlights, `/notes/new` labels, Next queue, or question lifecycle rules; rebuild the Phase 8 deletion backend unless the client has no delete operation to call.
+
+### Tests for Phase 22 (write first; they must fail)
+
+- [ ] T181 [P] [US6] Extend `web/tests/component/NoteEditor.test.ts` (and `web/tests/component/DeleteNoteReview.test.ts` if the review dialog is used): an existing saved note renders a control named Delete note; clicking it opens confirmation or `DeleteNoteReview`; confirming calls delete / `onDelete` once; cancel does not call delete and leaves the note loaded. `/notes/new` must not expose a working delete for an unsaved note.
+- [ ] T182 [P] [US6] Add Playwright `tests/e2e/us6-delete-note-button.spec.ts`: create a workspace and a uniquely titled note; open it; Delete note → cancel → still on the note page and the title still appears on `/notes`; Delete note → confirm → land on `/notes` without that title. Keep `tests/e2e/accessibility-notes.spec.ts` passing.
+
+### Implementation for Phase 22
+
+- [ ] T183 [P] [US6] Ensure the frontend can call note deletion in `web/src/lib/api/notes.ts`.
+  **Read:** `web/src/lib/api/notes.ts`, `web/src/lib/api/client.ts`, and the existing note-deletion operations in `specs/001-track-note-questions/contracts/openapi.yaml` (Phase 8 / T096).
+  **Do:** Add or finish `notesApi` methods that match those operations (preview + execute if that is the contract; otherwise `DELETE` with current `version`). Do not invent a new path. Typed errors must surface 404, 409 version conflict, and 422 the same way other note writes do.
+  **Do not:** add a new backend route; do not log note bodies.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteEditor.test.ts` (client compile is enough if the new tests still fail on missing UI).
+
+- [ ] T184 [US6] Wire the existing Delete note button.
+  **Read:** `web/src/lib/editor/NoteEditor.svelte` and `web/src/routes/notes/[noteId]/+page.svelte` only far enough to find the already-rendered Delete note control; `web/src/lib/components/DeleteNoteReview.svelte` if it exists.
+  **Do:** Attach the handler to that existing control — do not add another button. Show `DeleteNoteReview` when that component exists; otherwise a dialog with Cancel and Delete note. Confirm runs the T183 client with the loaded note `id` and `version`. Cancel closes the dialog with no API call. Hide or disable delete on `/notes/new` until a note has been saved.
+  **Do not:** delete on the first click with no confirm; do not navigate yet (T185).
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteEditor.test.ts tests/component/DeleteNoteReview.test.ts`
+
+- [ ] T185 [US6] After a successful delete, leave the note page.
+  **Read:** `web/src/routes/notes/[noteId]/+page.svelte`, `web/src/lib/stores/query.ts`, `web/src/lib/stores/toast.ts`.
+  **Do:** On success: toast that the note was deleted, invalidate note/question list queries, `goto('/notes')`. On 409: show the conflict and do not navigate. On other errors: show the API envelope and stay on the page. If preview/execute is required, call preview then execute with the review decisions; do not invent a new deletion policy.
+  **Verify:** `npx playwright test tests/e2e/us6-delete-note-button.spec.ts tests/e2e/accessibility-notes.spec.ts`
+
+**Landmines:** Do not add a second Delete note button. `/notes/new` Title/Note labels unchanged. `questionLinks` are irrelevant after the note is gone — do not save the note as part of delete. Optimistic `version` must be sent. Never log note/question/answer bodies. Cancel must mutate nothing.
+
+**Checkpoint**: The existing Delete note button deletes the current note after confirm and does nothing on cancel.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies
@@ -753,6 +793,7 @@ Then `tests/e2e/us1-notes-highlight.spec.ts` and `tests/e2e/accessibility-notes.
 19. **Phase 19 — Link/attach from reading** depends on Phase 18 matcher and US2 picker. Unlinked create uses existing POST `/questions`.
 20. **Phase 20 — Keyboard capture** depends on Phase 19 toolbar/picker so L has a target; Q/A/Escape can ship after Phase 11 if L is ignored when `onLinkExisting` is missing.
 21. **Phase 21 — Map/trace** depends on the phases you actually shipped.
+22. **Phase 22 — Wire Delete note** depends on US1 note get/update and the existing note page. Use US6 preview/execute if those handlers already exist (Phase 8). Do not rebuild deletion backend unless the client has no delete operation to call. Independent of Phases 13–20.
 
 ### User story dependency graph
 
@@ -769,6 +810,7 @@ US1 + US2 + US3 + US4 + US5 + US6 → US7 Import/Export → Polish
                                                          → Phase 16 defer date (US3)
                                                          → Phase 17 resolved / insert
                                                          → Phase 18 wrap match → Phase 19 link/attach → Phase 20 keys
+                                                         → Phase 22 wire Delete note button (US6)
 ```
 
 ### Within each user story
@@ -845,7 +887,7 @@ Parallel after failing tests: T130 contracts | T131 kind backend | T132 notes li
 Sequential UX: T133 wrap/render → T134 reader/card/editor → T135 create+filter → T136 refresh PROJECT_MAP.md
 ```
 
-### Phases 13–20 (small-model slices)
+### Phases 13–22 (small-model slices)
 
 ```text
 One agent = one task. Never start T14x while T13x tests are unwritten.
@@ -858,6 +900,7 @@ One agent = one task. Never start T14x while T13x tests are unwritten.
 19: T170–T171 tests → T172 link existing → T173 unlinked create → T174 attach = link
 20: T175 tests → T176 keydown → T177 toolbar hint
 21: T178 map → T179 trace → T180 only tests you ran
+22: T181–T182 tests → T183 notesApi.delete → T184 wire existing button → T185 navigate/invalidate
 ```
 
 ---
@@ -891,6 +934,7 @@ This is the smallest useful slice, but it is not the complete product MVP descri
 7. **Phase 13–14** → answer beside the passage; next gap on the note.
 8. **Phase 15–16** → Next queue and deferred resume dates.
 9. **Phase 17–20** → resolved highlights, sturdier wrap, link/attach, keyboard.
+10. **Phase 22** → make the existing Delete note button actually delete (cancel-safe).
 
 ### Team parallelism
 
@@ -915,3 +959,4 @@ All streams must update the same OpenAPI contract and shared fixtures in coordin
 - Commit after each task or small logical group and run affected tests at every checkpoint.
 - Phase 11 is gap remediation on top of a working US1–US7 tree. A new implementation session must read `PROJECT_MAP.md` first and follow its file map rather than rereading the repository.
 - Phases 13–20 are further gap remediation (US8–US12). A new session reads `PROJECT_MAP.md`, **only the current phase in this file**, and only named files. One task per session for small models. Do not start a later phase to “also add” extra product ideas (AI, flashcards, saved filters, Feynman modes).
+- Phase 22 is gap remediation for the existing no-op Delete note button (US6). A new session reads `PROJECT_MAP.md`, **only Phase 22**, and only named files. Do not add a second delete button.
