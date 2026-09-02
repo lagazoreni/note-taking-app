@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { notesApi } from '$lib/api/notes';
 	import { tagsApi } from '$lib/api/tags';
-	import { directiveIds, insertDirective, wrapSelection } from './directives';
+	import {
+		directiveIds,
+		insertAnswerAfterDirective,
+		insertDirective,
+		wrapSelection
+	} from './directives';
 	import { markSaved, markUnsaved } from '$lib/stores/unsaved';
 	import { pushToast } from '$lib/stores/toast';
 	import { questionsApi } from '$lib/api/questions';
@@ -246,6 +251,20 @@
 		}
 	}
 
+	async function insertAnswer(question: Question): Promise<void> {
+		const answer = question.answerMarkdown;
+		if (!answer) return;
+
+		bodyMarkdown = insertAnswerAfterDirective(bodyMarkdown, question.id, answer);
+		links = directiveIds(bodyMarkdown).map((id, position) => {
+			const current = links.find((link) => link.questionId === id);
+			return current
+				? { ...current, position }
+				: { questionId: id, displayMode: 'collapsed' as DisplayMode, position };
+		});
+		await save();
+	}
+
 	async function captureFromReader(
 		kind: QuestionKind,
 		passage: string,
@@ -318,6 +337,7 @@
 			{questions}
 			focusQuestionId={focusId}
 			onCapture={captureFromReader}
+			onInsertAnswer={insertAnswer}
 		/>
 		<NoteQuestionRail
 			{questions}

@@ -248,21 +248,21 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
   **Do:** `NoteReader`: `$: html = renderNoteHtml(markdown, questions)`. `NoteExcerpt`: `export let status = ''` and pass a one-item questions array (or equivalent) into `renderNoteHtml`. `QuestionContext`: pass `status={question.status}` into `NoteExcerpt`.
   **Verify:** `npm --prefix web test -- --run tests/unit/markdown-status.test.ts tests/component/NoteReader.test.ts tests/component/NoteExcerpt.test.ts tests/component/QuestionContext.test.ts`
 
-- [ ] T165 [US11] Insert button on `web/src/lib/components/AnnotationCard.svelte` only.
+- [x] T165 [US11] Insert button on `web/src/lib/components/AnnotationCard.svelte` only.
   **Do:** If `question.kind !== 'annotation'` and `question.status === 'answered'` and `question.answerMarkdown`, show button `Insert answer into note`. `export let onInsertAnswer: (() => Promise<void> | void) | undefined`. Click calls `onInsertAnswer` once. Do not call APIs from the card.
   **Verify:** `npm --prefix web test -- --run tests/component/AnnotationCard.test.ts`
 
-- [ ] T165a [US11] Implement insert in `web/src/lib/editor/NoteEditor.svelte`.
+- [x] T165a [US11] Implement insert in `web/src/lib/editor/NoteEditor.svelte`.
   **Read:** `save()` and `captureFromReader` in that file; `insertAnswerAfterDirective` from T163.
   **Do:** `async function insertAnswer(question: Question)`: run `insertAnswerAfterDirective` on `bodyMarkdown`; assign the result; rebuild `links` from `directiveIds` the same way `save()` already does; `await save()`. Do not change question status. Do not wrap this into `QuestionLifecycle`.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteEditor.test.ts tests/unit/insertAnswer.test.ts`
 
-- [ ] T165b [US11] Wire insert through `NoteReader`.
+- [x] T165b [US11] Wire insert through `NoteReader`.
   **Read:** `NoteReader.svelte` (`<AnnotationCard question={openQuestion} passage={openPassage} onClose={...} />`) and the read-mode `NoteReader` tag in `NoteEditor.svelte`.
   **Do:** `NoteReader`: `export let onInsertAnswer: ((question: Question) => Promise<void> | void) | undefined` and pass a thunk into `AnnotationCard`. `NoteEditor`: `onInsertAnswer={insertAnswer}` (or a wrapper that passes `openQuestion`).
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/AnnotationCard.test.ts tests/component/NoteEditor.test.ts`
 
-- [ ] T165c [US11] Insert from the question context page.
+- [x] T165c [US11] Insert from the question context page.
   **Read:** `web/src/lib/components/QuestionContext.svelte` and `web/src/routes/questions/[questionId]/+page.svelte`.
   **Do:** If the loaded question is answered with an answer and `note` is non-null, show `Insert answer into note` on `QuestionContext` (not inside `QuestionLifecycle.save`). Click: `insertAnswerAfterDirective` on `note.bodyMarkdown`, rebuild `questionLinks` from `directiveIds`, `notesApi.update` with current `note.version`. Skip if unlinked (`note` is null). Do not change question status.
   **Verify:** `npm --prefix web test -- --run tests/component/QuestionContext.test.ts` then `npx playwright test tests/e2e/us11-resolved-highlight.spec.ts tests/e2e/us8-answer-in-context.spec.ts`

@@ -4,7 +4,9 @@
 	export let question: Question;
 	export let passage: string;
 	export let onClose: (() => void) | undefined = undefined;
+	export let onInsertAnswer: (() => Promise<void> | void) | undefined = undefined;
 	$: isAnnotation = question.kind === 'annotation';
+	$: canInsertAnswer = !isAnnotation && question.status === 'answered' && Boolean(question.answerMarkdown);
 	let draft = question.questionText;
 	$: draft = question.questionText;
 </script>
@@ -16,6 +18,9 @@
 	</div>
 	<blockquote>{passage}</blockquote>
 	<p class="text">{question.questionText}</p>
+	{#if canInsertAnswer}
+		<button type="button" class="insert-answer" onclick={() => onInsertAnswer?.()}>Insert answer into note</button>
+	{/if}
 	{#if isAnnotation}
 		<label for="annotation-body">Annotation</label>
 		<textarea id="annotation-body" rows="4" bind:value={draft}></textarea>
@@ -65,6 +70,14 @@
 	.text {
 		margin: 0 0 0.75rem;
 		color: #0f172a;
+	}
+	.insert-answer {
+		margin: 0 0 0.75rem;
+		border: 1px solid #2563eb;
+		background: #eff6ff;
+		color: #1d4ed8;
+		border-radius: 0.35rem;
+		padding: 0.45rem 0.7rem;
 	}
 	label {
 		font-weight: 650;

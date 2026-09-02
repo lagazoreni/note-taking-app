@@ -10,6 +10,7 @@
 	export let onCapture:
 		((kind: QuestionKind, passage: string, text: string) => Promise<Question | void>) | undefined =
 		undefined;
+	export let onInsertAnswer: ((question: Question) => Promise<void> | void) | undefined = undefined;
 
 	let showToolbar = false;
 	let selectedPassage = '';
@@ -232,6 +233,7 @@
 			question={openQuestion}
 			passage={openPassage}
 			onClose={() => (openQuestion = null)}
+			onInsertAnswer={() => onInsertAnswer?.(openQuestion!)}
 		/>
 	{/if}
 </div>

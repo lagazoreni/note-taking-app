@@ -2,7 +2,9 @@
 	import NoteExcerpt from '$lib/components/NoteExcerpt.svelte';
 	import QuestionLifecycle from '$lib/components/QuestionLifecycle.svelte';
 	import QuestionSchedule from '$lib/components/QuestionSchedule.svelte';
-	import type { Note } from '$lib/types/note';
+	import { notesApi } from '$lib/api/notes';
+	import { directiveIds, insertAnswerAfterDirective } from '$lib/editor/directives';
+	import type { Note, NoteQuestionLinkWrite } from '$lib/types/note';
 	import type { Question } from '$lib/types/question';
 
 	export let question: Question;
@@ -10,10 +12,59 @@
 	export let selectedNoteId = '';
 	export let onSelectNote: (id: string) => void;
 	export let onSave: (q: Question) => void;
+	let insertingAnswer = false;
+	let insertError = '';
+	$: canInsertAnswer =
+		question.kind !== 'annotation' &&
+		question.status === 'answered' &&
+		Boolean(question.answerMarkdown) &&
+		note !== null;
 
 	function selectNote(event: Event) {
 		const target = event.currentTarget as HTMLSelectElement;
 		onSelectNote(target.value);
+	}
+
+	async function insertAnswer() {
+		const currentNote = note;
+		const answer = question.answerMarkdown;
+		if (
+			!currentNote ||
+			!answer ||
+			question.kind === 'annotation' ||
+			question.status !== 'answered'
+		) {
+			return;
+		}
+
+		insertingAnswer = true;
+		insertError = '';
+		try {
+			const bodyMarkdown = insertAnswerAfterDirective(currentNote.bodyMarkdown, question.id, answer);
+			const questionLinks: NoteQuestionLinkWrite[] = directiveIds(bodyMarkdown).map(
+				(id, position) => {
+					const current = currentNote.questionLinks.find((link) => link.questionId === id);
+					return current
+						? { questionId: current.questionId, displayMode: current.displayMode, position }
+						: { questionId: id, displayMode: 'collapsed', position };
+				}
+			);
+			const updatedNote = await notesApi.update(currentNote.id, {
+				workspaceId: currentNote.workspaceId,
+				topicId: currentNote.topicId,
+				parentNoteId: currentNote.parentNoteId,
+				title: currentNote.title,
+				bodyMarkdown,
+				questionLinks,
+				tagIds: [...(currentNote.tagIds ?? [])],
+				version: currentNote.version
+			});
+			if (note?.id === currentNote.id) note = updatedNote;
+		} catch (cause) {
+			insertError = cause instanceof Error ? cause.message : 'Could not insert answer into note';
+		} finally {
+			insertingAnswer = false;
+		}
 	}
 </script>
 
@@ -35,9 +86,15 @@
 				status={question.status}
 				ariaLabel="Note excerpt"
 			/>
+			{#if canInsertAnswer}
+				<button type="button" onclick={() => void insertAnswer()} disabled={insertingAnswer}>
+					{insertingAnswer ? 'Inserting…' : 'Insert answer into note'}
+				</button>
+			{/if}
 		{:else}
 			<p>This question is currently unlinked.</p>
 		{/if}
+		{#if insertError}<p class="insert-error" role="alert">{insertError}</p>{/if}
 	</div>
 	<div class="controls">
 		<QuestionLifecycle {question} {onSave} />
@@ -74,6 +131,24 @@
 		max-width: 100%;
 		padding: 0.5rem 0.65rem;
 		border: 1px solid #cbd5e1;
+		border-radius: 0.4rem;
+	}
+	.note-pane button {
+		width: max-content;
+		border: 0;
+		background: #2563eb;
+		color: #fff;
+		border-radius: 0.4rem;
+		padding: 0.55rem 0.8rem;
+	}
+	.note-pane button:disabled {
+		opacity: 0.55;
+	}
+	.insert-error {
+		margin: 0;
+		padding: 0.6rem;
+		background: #fef2f2;
+		color: #991b1b;
 		border-radius: 0.4rem;
 	}
 	@media (max-width: 800px) {
