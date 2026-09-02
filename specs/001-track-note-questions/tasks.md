@@ -220,10 +220,10 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 ### Tests for Phase 17 (write first; they must fail)
 
-- [ ] T160 [P] [US11] Add `web/tests/unit/insertAnswer.test.ts` for `insertAnswerAfterDirective` in `web/src/lib/editor/directives.ts`: wrapped id inserts `\n\n` + blockquote of the answer immediately after `{{/question}}`; multiline answer prefixes each line with `> `; second call returns the same markdown; unknown id returns markdown unchanged; empty answer throws and does not mutate.
-- [ ] T161 [P] [US11] Add `web/tests/unit/markdown-status.test.ts`: `renderNoteHtml(md, questions)` sets `data-status` and `data-kind` on the mark; raw `{{question:` still absent. Keep `markdown-security.test.ts` unchanged in this task.
-- [ ] T161a [P] [US11] Extend `web/tests/component/AnnotationCard.test.ts` only: answered question shows Insert answer into note; clicking calls `onInsertAnswer` once. Annotations and unanswered questions do not show the button.
-- [ ] T162 [P] [US11] Add `tests/e2e/us11-resolved-highlight.spec.ts`: answer, reload note, mark has resolved styling or `data-status="answered"`; insert once; reload; blockquote visible; answer save without insert does not add a blockquote.
+- [x] T160 [P] [US11] Add `web/tests/unit/insertAnswer.test.ts` for `insertAnswerAfterDirective` in `web/src/lib/editor/directives.ts`: wrapped id inserts `\n\n` + blockquote of the answer immediately after `{{/question}}`; multiline answer prefixes each line with `> `; second call returns the same markdown; unknown id returns markdown unchanged; empty answer throws and does not mutate.
+- [x] T161 [P] [US11] Add `web/tests/unit/markdown-status.test.ts`: `renderNoteHtml(md, questions)` sets `data-status` and `data-kind` on the mark; raw `{{question:` still absent. Keep `markdown-security.test.ts` unchanged in this task.
+- [x] T161a [P] [US11] Extend `web/tests/component/AnnotationCard.test.ts` only: answered question shows Insert answer into note; clicking calls `onInsertAnswer` once. Annotations and unanswered questions do not show the button.
+- [x] T162 [P] [US11] Add `tests/e2e/us11-resolved-highlight.spec.ts`: answer, reload note, mark has resolved styling or `data-status="answered"`; insert once; reload; blockquote visible; answer save without insert does not add a blockquote.
 
 ### Implementation for Phase 17
 
