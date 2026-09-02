@@ -31,14 +31,40 @@ describe('wrapped highlight directives', () => {
 		expect(directiveIds(markdown)).toEqual([id]);
 	});
 
-	it('wraps the selected passage with a highlight directive', () => {
+	it('rejects an empty selection with a stable error', () => {
+		expect(() => wrapSelection('Hello world', '', id)).toThrow('selection is empty');
+	});
+
+	it('wraps the first exact occurrence and preserves directive order', () => {
+		const markdown = `before {{question:${other}}}existing{{/question}} after after`;
+		expect(wrapSelection(markdown, 'after', id)).toBe(
+			`before {{question:${other}}}existing{{/question}} {{question:${id}}}after{{/question}} after`
+		);
+		expect(directiveIds(wrapSelection(markdown, 'after', id))).toEqual([other, id]);
 		expect(wrapSelection('Hello world today', 'world', id)).toBe(
 			`Hello {{question:${id}}}world{{/question}} today`
 		);
-		expect(wrapSelection(`Keep {{question:${other}}}world{{/question}}`, 'Keep', id)).toBe(
-			`{{question:${id}}}Keep{{/question}} {{question:${other}}}world{{/question}}`
-		);
 		expect(() => wrapSelection(`{{question:${other}}}`, 'ignored', id)).toThrow();
+	});
+
+	it('matches collapsed whitespace while preserving the original spaced span', () => {
+		const markdown = 'hello   world';
+		expect(wrapSelection(markdown, 'hello world', id)).toBe(
+			`{{question:${id}}}hello   world{{/question}}`
+		);
+	});
+
+	it('matches rendered text inside Markdown markers while preserving the markers', () => {
+		const markdown = '**bold**';
+		expect(wrapSelection(markdown, 'bold', id)).toBe(
+			`{{question:${id}}}**bold**{{/question}}`
+		);
+	});
+
+	it('reports when a selection cannot be found in the note', () => {
+		expect(() => wrapSelection('hello world', 'zzz', id)).toThrow(
+			'Could not find that passage in the note. Try selecting plain text.'
+		);
 	});
 
 	it('strips wrap tokens while keeping the snippet, and drops bare tokens', () => {

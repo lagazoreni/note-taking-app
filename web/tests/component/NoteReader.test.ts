@@ -70,6 +70,25 @@ describe('NoteReader', () => {
 		expect(within(dialog).getByText('What causes this?')).toBeInTheDocument();
 	});
 
+	it('shows capture errors and keeps the composer open', async () => {
+		const errorMessage = 'Could not find that passage in the note. Try selecting plain text.';
+		const onCapture = vi.fn().mockRejectedValue(new Error(errorMessage));
+		render(NoteReader, { markdown: 'Select this passage.', questions: [], onCapture });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+		const input = screen.getByLabelText('Question text');
+		await fireEvent.input(input, { target: { value: 'Why does this happen?' } });
+		await fireEvent.click(screen.getByRole('button', { name: 'Save question' }));
+
+		expect(await screen.findByRole('alert')).toHaveTextContent(errorMessage);
+		expect(screen.getByLabelText('Question text')).toBeInTheDocument();
+		expect(screen.queryByRole('dialog', { name: /question/i })).not.toBeInTheDocument();
+		expect(onCapture).toHaveBeenCalledOnce();
+	});
+
 	it('dismisses selection actions and the composer without capturing', async () => {
 		const onCapture = vi.fn();
 		render(NoteReader, { markdown: 'Select this passage.', questions: [], onCapture });

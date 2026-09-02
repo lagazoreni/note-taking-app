@@ -285,11 +285,11 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 Split the unit file so each matcher slice can pass on its own. `wrapSelection` today does `markdown.indexOf(selectedText)` and throws `selection is empty` / `selection not found in note`.
 
-- [ ] T166 [P] [US12] Extend `web/tests/unit/directives.test.ts` with cases that can pass after T168: empty selection throws `selection is empty`; exact substring still wraps the first occurrence; wrap still produces `{{question:id}}…{{/question}}`; `directiveIds` order is preserved when a wrap is added among existing directives.
-- [ ] T166a [P] [US12] Add cases: markdown `hello   world` + selection `hello world` wraps the original spaced span.
-- [ ] T166b [P] [US12] Add cases: markdown `**bold**` + selection `bold` wraps `**bold**`; no match throws `Could not find that passage in the note. Try selecting plain text.`
-- [ ] T167 [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: when `onCapture` rejects with that error, composer shows it (`composerError` / role=alert) and the success path does not run (composer stays open). Do not write Playwright in this task.
-- [ ] T167a [P] [US12] Add `tests/e2e/us12-passage-match.spec.ts` for the bold case (note body exactly `This is **bold** text.`).
+- [x] T166 [P] [US12] Extend `web/tests/unit/directives.test.ts` with cases that can pass after T168: empty selection throws `selection is empty`; exact substring still wraps the first occurrence; wrap still produces `{{question:id}}…{{/question}}`; `directiveIds` order is preserved when a wrap is added among existing directives.
+- [x] T166a [P] [US12] Add cases: markdown `hello   world` + selection `hello world` wraps the original spaced span.
+- [x] T166b [P] [US12] Add cases: markdown `**bold**` + selection `bold` wraps `**bold**`; no match throws `Could not find that passage in the note. Try selecting plain text.`
+- [x] T167 [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: when `onCapture` rejects with that error, composer shows it (`composerError` / role=alert) and the success path does not run (composer stays open). Do not write Playwright in this task.
+- [x] T167a [P] [US12] Add `tests/e2e/us12-passage-match.spec.ts` for the bold case (note body exactly `This is **bold** text.`).
 
 ### Implementation for Phase 18
 
