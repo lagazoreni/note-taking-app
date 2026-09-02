@@ -173,9 +173,9 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 ### Tests for Phase 16 (write first; they must fail)
 
-- [ ] T155 [P] [US10] Extend `server/internal/domain/question_lifecycle_test.go`: `deferred` with empty/nil due date fails; `deferred` with `YYYY-MM-DD` succeeds; `answered` still requires an answer and does not require a due date; `unanswered` / `in_progress` still allow null due date.
-- [ ] T156 [P] [US10] Extend `web/tests/component/QuestionLifecycle.test.ts` only: choosing Deferred with no date shows `A resume date is required to defer a question.` and does not call update; with a date, save sends `status: 'deferred'` and that `dueDate`. Do not write Playwright in this task.
-- [ ] T156a [P] [US10] Add `tests/e2e/us10-defer-date.spec.ts` for the rejection + success path. Do not rewrite `tests/e2e/us3-question-lifecycle.spec.ts`.
+- [x] T155 [P] [US10] Extend `server/internal/domain/question_lifecycle_test.go`: `deferred` with empty/nil due date fails; `deferred` with `YYYY-MM-DD` succeeds; `answered` still requires an answer and does not require a due date; `unanswered` / `in_progress` still allow null due date.
+- [x] T156 [P] [US10] Extend `web/tests/component/QuestionLifecycle.test.ts` only: choosing Deferred with no date shows `A resume date is required to defer a question.` and does not call update; with a date, save sends `status: 'deferred'` and that `dueDate`. Do not write Playwright in this task.
+- [x] T156a [P] [US10] Add `tests/e2e/us10-defer-date.spec.ts` for the rejection + success path. Do not rewrite `tests/e2e/us3-question-lifecycle.spec.ts`.
 
 ### Implementation for Phase 16
 
