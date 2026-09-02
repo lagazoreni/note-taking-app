@@ -18,7 +18,7 @@ async function createWorkspace(page: Page, name: string) {
 async function createNote(page: Page, title: string, body: string) {
 	await page.goto('/notes/new');
 	await page.getByLabel('Title').fill(title);
-	await page.getByLabel('Note').fill(body);
+	await page.getByRole('textbox', { name: 'Note', exact: true }).fill(body);
 	await page.getByRole('button', { name: 'Save note' }).click();
 	await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}/i);
 }

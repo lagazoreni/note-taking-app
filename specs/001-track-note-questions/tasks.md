@@ -82,22 +82,22 @@ Current page already loads `questionsApi.get` in `onMount`, keeps `saved(value)`
 
 Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown={bodyMarkdown} {questions} onCapture={captureFromReader} />`. `directiveIds` is already imported in `NoteEditor.svelte`. New unsaved notes stay in edit mode — do not show the rail on `/notes/new`.
 
-- [ ] T147 [P] [US8] Create `web/src/lib/components/NoteQuestionRail.svelte`.
+- [x] T147 [P] [US8] Create `web/src/lib/components/NoteQuestionRail.svelte`.
   **Do:** `export let questions: Question[] = []`; `export let orderedIds: string[] = []`; `export let onSelect: ((id: string) => void) | undefined`; `export let onNext: (() => void) | undefined`. Filter `kind !== 'annotation'` (missing kind counts as question) and `status !== 'answered'`. Sort by `orderedIds`. Render `<aside aria-label="Open questions in this note">` with a button per item (question text + status) and a “Next unanswered” button. Empty: `No open questions in this note`.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteQuestionRail.test.ts`
 
-- [ ] T148 [US8] Open a highlight from the outside.
+- [x] T148 [US8] Open a highlight from the outside.
   **Read:** `web/src/lib/editor/NoteReader.svelte` (`onClick` already finds `mark[data-annotation-id]`, then `questions.find`, then `tokenizeDirectives` for `openPassage`).
   **Do:** Add `export let focusQuestionId: string | null = null`. When `focusQuestionId` changes to a non-null id present in `questions`, set `openQuestion` / `openPassage` the same way that click path does. Do not clear `focusQuestionId` yourself if it is a prop; parent may reset it.
   **Do not:** remove Cancel / Escape / outside-click dismissal; do not change capture/toolbar.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T149 [US8] Mount the rail beside the reader.
+- [x] T149 [US8] Mount the rail beside the reader.
   **Read:** `web/src/lib/editor/NoteEditor.svelte` only around the read-mode `NoteReader` block.
   **Do:** Beside `NoteReader` (not inside the article), render `NoteQuestionRail` with `questions` and `orderedIds={directiveIds(bodyMarkdown)}`. Leave `onSelect` / `onNext` unset. Do not add `focusId` yet. Do not show the rail in edit mode.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteEditor.test.ts tests/component/NoteQuestionRail.test.ts`
 
-- [ ] T149a [US8] Walk open questions from the rail.
+- [x] T149a [US8] Walk open questions from the rail.
   **Read:** `web/src/lib/editor/NoteEditor.svelte` read-mode block only.
   **Do:** `let focusId: string | null = null`. Rail `onSelect(id)` sets `focusId = id`. `onNext` sets `focusId` to the next open id in `directiveIds(bodyMarkdown)` order (skip `kind === 'annotation'` and `status === 'answered'`; missing kind counts as question). After the last open item, `focusId = null`. Pass `focusQuestionId={focusId}` to `NoteReader`. Narrow viewport: stack the rail below the reader with CSS, not a second `NoteReader`.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteEditor.test.ts tests/component/NoteQuestionRail.test.ts tests/component/NoteReader.test.ts` then `npx playwright test tests/e2e/us8-note-rail.spec.ts`

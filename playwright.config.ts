@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const webPort = process.env.PLAYWRIGHT_PORT ?? "5174";
+const webBaseURL = `http://127.0.0.1:${webPort}`;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.ts",
@@ -8,7 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [["html", { outputFolder: "playwright-report" }], ["list"]],
   use: {
-    baseURL: "http://127.0.0.1:5174",
+    baseURL: webBaseURL,
     trace: "on-first-retry",
     serviceWorkers: "allow",
   },
@@ -26,8 +29,8 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: "npm --prefix web run dev -- --host 127.0.0.1 --port 5174",
-      url: "http://127.0.0.1:5174",
+      command: `npm --prefix web run dev -- --host 127.0.0.1 --port ${webPort}`,
+      url: webBaseURL,
       reuseExistingServer: !process.env.CI,
       stdout: "ignore",
       stderr: "pipe",

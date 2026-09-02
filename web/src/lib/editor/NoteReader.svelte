@@ -6,6 +6,7 @@
 
 	export let markdown: string;
 	export let questions: Question[] = [];
+	export let focusQuestionId: string | null = null;
 	export let onCapture:
 		((kind: QuestionKind, passage: string, text: string) => Promise<Question | void>) | undefined =
 		undefined;
@@ -72,6 +73,18 @@
 		openPassage = token?.directive?.snippet || mark.textContent || '';
 		openQuestion = question;
 		clearSelection();
+	}
+
+	$: if (focusQuestionId !== null) {
+		const question = questions.find((item) => item.id === focusQuestionId) ?? null;
+		if (question) {
+			const token = tokenizeDirectives(markdown).find(
+				(item) => item.kind === 'question' && item.directive?.id === focusQuestionId
+			);
+			openPassage = token?.directive?.snippet || '';
+			openQuestion = question;
+			clearSelection();
+		}
 	}
 
 	function openComposer(kind: QuestionKind) {

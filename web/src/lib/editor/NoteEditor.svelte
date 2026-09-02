@@ -6,6 +6,7 @@
 	import { pushToast } from '$lib/stores/toast';
 	import { questionsApi } from '$lib/api/questions';
 	import QuestionPicker from '$lib/components/QuestionPicker.svelte';
+	import NoteQuestionRail from '$lib/components/NoteQuestionRail.svelte';
 	import TagSelector from '$lib/components/TagSelector.svelte';
 	import NoteReader from './NoteReader.svelte';
 	import type { Note, NoteQuestionLinkWrite, NoteWrite } from '$lib/types/note';
@@ -47,6 +48,7 @@
 	let questionRequest = 0;
 	let tagRequest = 0;
 	let savedNewNote = false;
+	let focusId: string | null = null;
 
 	function sameIDs(left: string[], right: string[]): boolean {
 		if (left.length !== right.length) return false;
@@ -281,6 +283,24 @@
 		if (!existing) return;
 		mode = mode === 'read' ? 'edit' : 'read';
 	}
+
+	function openQuestionIds(): string[] {
+		const questionById = new Map(questions.map((question) => [question.id, question]));
+		return directiveIds(bodyMarkdown).filter((id) => {
+			const question = questionById.get(id);
+			return question && question.kind !== 'annotation' && question.status !== 'answered';
+		});
+	}
+
+	function selectQuestion(id: string) {
+		focusId = id;
+	}
+
+	function selectNextQuestion() {
+		const ids = openQuestionIds();
+		const currentIndex = focusId ? ids.indexOf(focusId) : -1;
+		focusId = ids[currentIndex + 1] ?? null;
+	}
 </script>
 
 {#if existing}
@@ -292,7 +312,20 @@
 {/if}
 
 {#if mode === 'read' && existing}
-	<NoteReader markdown={bodyMarkdown} {questions} onCapture={captureFromReader} />
+	<div class="reading-layout">
+		<NoteReader
+			markdown={bodyMarkdown}
+			{questions}
+			focusQuestionId={focusId}
+			onCapture={captureFromReader}
+		/>
+		<NoteQuestionRail
+			{questions}
+			orderedIds={directiveIds(bodyMarkdown)}
+			onSelect={selectQuestion}
+			onNext={selectNextQuestion}
+		/>
+	</div>
 {:else}
 	<form
 		class="editor"
@@ -386,6 +419,17 @@
 		color: #1d4ed8;
 		border-radius: 0.4rem;
 		padding: 0.55rem 0.8rem;
+	}
+	.reading-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+		gap: 0.75rem;
+		align-items: start;
+	}
+	@media (max-width: 800px) {
+		.reading-layout {
+			grid-template-columns: 1fr;
+		}
 	}
 	.editor {
 		display: grid;

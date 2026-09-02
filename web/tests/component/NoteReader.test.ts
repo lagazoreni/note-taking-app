@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import NoteReader from '$lib/editor/NoteReader.svelte';
 import type { Question } from '$lib/types/question';
@@ -64,9 +64,10 @@ describe('NoteReader', () => {
 			focusQuestionId: id
 		});
 
-		expect(screen.getByRole('dialog', { name: /question/i })).toBeInTheDocument();
-		expect(screen.getByText('selected passage')).toBeInTheDocument();
-		expect(screen.getByText('What causes this?')).toBeInTheDocument();
+		const dialog = screen.getByRole('dialog', { name: /question/i });
+		expect(dialog).toBeInTheDocument();
+		expect(within(dialog).getByText('selected passage')).toBeInTheDocument();
+		expect(within(dialog).getByText('What causes this?')).toBeInTheDocument();
 	});
 
 	it('dismisses selection actions and the composer without capturing', async () => {
