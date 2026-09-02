@@ -229,21 +229,21 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 `renderNoteHtml(markdown: string)` currently builds `<mark data-annotation-id>` and sanitizes with `ADD_ATTR: ['data-annotation-id']`. `NoteReader` uses `$: html = renderNoteHtml(markdown)` and already has `questions`. `NoteExcerpt` uses `$: html = renderNoteHtml(markdown)` with no status prop. `AnnotationCard` renders `QuestionLifecycle` without `onSave` and has no insert button. `NoteEditor.save()` already rebuilds `questionLinks` from `directiveIds(bodyMarkdown)`. Do not insert inside `QuestionLifecycle.save()`.
 
-- [ ] T163 [P] [US11] Add `insertAnswerAfterDirective(markdown: string, id: string, answer: string): string` to `web/src/lib/editor/directives.ts`.
+- [x] T163 [P] [US11] Add `insertAnswerAfterDirective(markdown: string, id: string, answer: string): string` to `web/src/lib/editor/directives.ts`.
   **Do:** Trim answer; throw if empty. Find the wrapped directive with that lowercase id. If the text after that wrap (skip one run of whitespace) already starts with a `>` line that contains the trimmed answer, return markdown unchanged. Else splice `\n\n` + answer lines each prefixed with `> ` + `\n` immediately after `{{/question}}`. Bare (unwrapped) tokens: insert the same blockquote immediately after the opening token. Reconstruct via `tokenizeDirectives` or index math; do not invent a second wrap.
   **Verify:** `npm --prefix web test -- --run tests/unit/insertAnswer.test.ts`
 
-- [ ] T164 [US11] Teach `renderNoteHtml` statuses in `web/src/lib/editor/markdown.ts` only.
+- [x] T164 [US11] Teach `renderNoteHtml` statuses in `web/src/lib/editor/markdown.ts` only.
   **Do:** `renderNoteHtml(markdown: string, questions: { id: string; status?: string; kind?: string }[] = [])`. On `<mark>` add `data-status` (default `unanswered`) and `data-kind` (default `question`). Add `data-status` and `data-kind` to DOMPurify `ADD_ATTR`. One-argument callers must still compile.
   **Do not:** edit Svelte files in this task.
   **Verify:** `npm --prefix web test -- --run tests/unit/markdown-status.test.ts tests/unit/markdown-security.test.ts`
 
-- [ ] T164a [US11] Resolved-highlight CSS.
+- [x] T164a [US11] Resolved-highlight CSS.
   **Read:** style blocks in `web/src/lib/editor/NoteReader.svelte` and `web/src/lib/components/NoteExcerpt.svelte` (both already style `mark[data-annotation-id]`).
   **Do:** Add `mark[data-status="answered"]` background `#d1fae5`, border-bottom `#047857`. Leave active marks as they are.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/NoteExcerpt.test.ts`
 
-- [ ] T164b [US11] Pass status into render.
+- [x] T164b [US11] Pass status into render.
   **Read:** `NoteReader.svelte` (`$: html = renderNoteHtml(markdown)`), `NoteExcerpt.svelte`, `QuestionContext.svelte` (`<NoteExcerpt markdown={note.bodyMarkdown} questionId={question.id} ... />`).
   **Do:** `NoteReader`: `$: html = renderNoteHtml(markdown, questions)`. `NoteExcerpt`: `export let status = ''` and pass a one-item questions array (or equivalent) into `renderNoteHtml`. `QuestionContext`: pass `status={question.status}` into `NoteExcerpt`.
   **Verify:** `npm --prefix web test -- --run tests/unit/markdown-status.test.ts tests/component/NoteReader.test.ts tests/component/NoteExcerpt.test.ts tests/component/QuestionContext.test.ts`

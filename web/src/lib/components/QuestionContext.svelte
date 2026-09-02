@@ -29,7 +29,12 @@
 		{/if}
 		{#if note}
 			<h2>{note.title}</h2>
-			<NoteExcerpt markdown={note.bodyMarkdown} questionId={question.id} ariaLabel="Note excerpt" />
+			<NoteExcerpt
+				markdown={note.bodyMarkdown}
+				questionId={question.id}
+				status={question.status}
+				ariaLabel="Note excerpt"
+			/>
 		{:else}
 			<p>This question is currently unlinked.</p>
 		{/if}

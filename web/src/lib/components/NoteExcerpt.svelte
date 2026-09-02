@@ -5,8 +5,9 @@
 	export let markdown = '';
 	export let questionId = '';
 	export let ariaLabel = 'Source note';
+	export let status = '';
 
-	$: html = renderNoteHtml(markdown);
+	$: html = renderNoteHtml(markdown, [{ id: questionId, status }]);
 	$: html, questionId, scrollToHighlight();
 
 	async function scrollToHighlight() {
@@ -36,6 +37,10 @@
 		background: #fef3c7;
 		border-bottom: 2px solid #d97706;
 		padding: 0 0.1em;
+	}
+	article :global(mark[data-status="answered"]) {
+		background: #d1fae5;
+		border-bottom: 2px solid #047857;
 	}
 	article :global(mark.annotation-chip) {
 		display: inline-block;

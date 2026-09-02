@@ -22,7 +22,7 @@
 	let openPassage = '';
 	let actionLayer: HTMLDivElement | null = null;
 
-	$: html = renderNoteHtml(markdown);
+	$: html = renderNoteHtml(markdown, questions);
 
 	function selectedText(): string {
 		return window.getSelection()?.toString().trim() ?? '';
@@ -254,6 +254,10 @@
 		border-bottom: 2px solid #d97706;
 		cursor: pointer;
 		padding: 0 0.1em;
+	}
+	article :global(mark[data-status="answered"]) {
+		background: #d1fae5;
+		border-bottom: 2px solid #047857;
 	}
 	article :global(mark.annotation-chip) {
 		display: inline-block;

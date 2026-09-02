@@ -71,6 +71,47 @@ export function wrapSelection(markdown: string, selectedText: string, id: string
 	const after = markdown.slice(index + selectedText.length);
 	return `${before}{{question:${id.toLowerCase()}}}${selectedText}{{/question}}${after}`;
 }
+
+function startsWithAnswerBlockquote(text: string, answer: string): boolean {
+	const afterWhitespace = text.replace(/^\s+/, '');
+	if (!afterWhitespace.startsWith('>')) return false;
+
+	const quotedLines: string[] = [];
+	for (const line of afterWhitespace.split(/\r?\n/)) {
+		if (!/^\s*>/.test(line)) break;
+		quotedLines.push(line.replace(/^\s*>\s?/, ''));
+	}
+	return quotedLines.join('\n').includes(answer);
+}
+
+export function insertAnswerAfterDirective(markdown: string, id: string, answer: string): string {
+	const trimmedAnswer = answer.trim();
+	if (!trimmedAnswer) throw new Error('answer is empty');
+
+	const needle = id.toLowerCase();
+	for (const match of markdown.matchAll(directive)) {
+		if (match[1].toLowerCase() !== needle) continue;
+
+		const openingEnd = (match.index ?? 0) + match[0].length;
+		const afterOpening = markdown.slice(openingEnd);
+		const closeIndex = afterOpening.indexOf(closeTag);
+		const nextOpeningIndex = afterOpening.search(nextOpening);
+		const wrapped = closeIndex >= 0 && (nextOpeningIndex === -1 || closeIndex < nextOpeningIndex);
+		const directiveEnd = wrapped ? openingEnd + closeIndex + closeTag.length : openingEnd;
+		const afterDirective = markdown.slice(directiveEnd);
+
+		if (startsWithAnswerBlockquote(afterDirective, trimmedAnswer)) return markdown;
+
+		const blockquote = trimmedAnswer
+			.split(/\r?\n/)
+			.map((line) => `> ${line}`)
+			.join('\n');
+		return `${markdown.slice(0, directiveEnd)}\n\n${blockquote}\n${afterDirective}`;
+	}
+
+	return markdown;
+}
+
 export function stripDirectives(markdown: string): string {
 	return tokenizeDirectives(markdown)
 		.map((token) => {
