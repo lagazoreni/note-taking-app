@@ -74,9 +74,9 @@ Current page already loads `questionsApi.get` in `onMount`, keeps `saved(value)`
 
 ### Tests for Phase 14 (write first; they must fail)
 
-- [ ] T145 [P] [US8] Add `web/tests/component/NoteQuestionRail.test.ts`: given mixed questions, the rail lists only `kind=question` with status `unanswered` / `in_progress` / `deferred`, in the provided `orderedIds` order; clicking an item calls `onSelect(id)`; Next unanswered calls `onNext`; when `remaining === 0` the next control is disabled or the rail text is `No open questions in this note`.
-- [ ] T146 [P] [US8] Extend `web/tests/component/NoteReader.test.ts` only: when `focusQuestionId` is set to a wrapped id, the card opens (`openQuestion` / dialog). Do not write Playwright in this task.
-- [ ] T146a [P] [US8] Add `tests/e2e/us8-note-rail.spec.ts` (do not extend `us8-answer-in-context.spec.ts`): two highlight questions on one note, Next unanswered twice, then the empty message. Annotations and answered items must not appear in the rail.
+- [x] T145 [P] [US8] Add `web/tests/component/NoteQuestionRail.test.ts`: given mixed questions, the rail lists only `kind=question` with status `unanswered` / `in_progress` / `deferred`, in the provided `orderedIds` order; clicking an item calls `onSelect(id)`; Next unanswered calls `onNext`; when `remaining === 0` the next control is disabled or the rail text is `No open questions in this note`.
+- [x] T146 [P] [US8] Extend `web/tests/component/NoteReader.test.ts` only: when `focusQuestionId` is set to a wrapped id, the card opens (`openQuestion` / dialog). Do not write Playwright in this task.
+- [x] T146a [P] [US8] Add `tests/e2e/us8-note-rail.spec.ts` (do not extend `us8-answer-in-context.spec.ts`): two highlight questions on one note, Next unanswered twice, then the empty message. Annotations and answered items must not appear in the rail.
 
 ### Implementation for Phase 14
 

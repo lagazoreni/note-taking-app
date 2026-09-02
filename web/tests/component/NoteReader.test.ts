@@ -57,6 +57,18 @@ describe('NoteReader', () => {
 		expect(screen.getByText('What causes this?')).toBeInTheDocument();
 	});
 
+	it('opens the matching highlight card when focusQuestionId is set', () => {
+		render(NoteReader, {
+			markdown: `Lead {{question:${id}}}selected passage{{/question}} tail`,
+			questions: [question],
+			focusQuestionId: id
+		});
+
+		expect(screen.getByRole('dialog', { name: /question/i })).toBeInTheDocument();
+		expect(screen.getByText('selected passage')).toBeInTheDocument();
+		expect(screen.getByText('What causes this?')).toBeInTheDocument();
+	});
+
 	it('dismisses selection actions and the composer without capturing', async () => {
 		const onCapture = vi.fn();
 		render(NoteReader, { markdown: 'Select this passage.', questions: [], onCapture });
