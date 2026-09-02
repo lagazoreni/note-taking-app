@@ -5,16 +5,19 @@ import (
 	"strings"
 )
 
-func ValidateTransition(from, to QuestionStatus, answer *string) error {
+func ValidateTransition(from, to QuestionStatus, answer, dueDate *string) error {
 	if !ValidStatus(to) {
 		return fmt.Errorf("invalid question status")
 	}
-	var trimmed string
+	var trimmedAnswer string
 	if answer != nil {
-		trimmed = strings.TrimSpace(*answer)
+		trimmedAnswer = strings.TrimSpace(*answer)
 	}
-	if to == StatusAnswered && trimmed == "" {
+	if to == StatusAnswered && trimmedAnswer == "" {
 		return fmt.Errorf("an answer is required before a question can be answered")
+	}
+	if to == StatusDeferred && (dueDate == nil || strings.TrimSpace(*dueDate) == "") {
+		return fmt.Errorf("a resume date is required to defer a question")
 	}
 	return nil
 }

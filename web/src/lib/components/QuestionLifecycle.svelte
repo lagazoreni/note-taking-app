@@ -7,6 +7,7 @@
 	export let onSave: ((question: Question) => void) | undefined = undefined;
 	let answer = question.answerMarkdown ?? '';
 	let status: QuestionStatus = question.status;
+	let dueDate = question.dueDate ?? '';
 	let saving = false;
 	let error = '';
 	async function save() {
@@ -17,6 +18,11 @@
 			saving = false;
 			return;
 		}
+		if (question.kind !== 'annotation' && status === 'deferred' && !dueDate.trim()) {
+			error = 'A resume date is required to defer a question.';
+			saving = false;
+			return;
+		}
 		try {
 			const value = await questionsApi.update(question.id, {
 				workspaceId: question.workspaceId,
@@ -24,12 +30,13 @@
 				answerMarkdown: answer.trim() || null,
 				status,
 				priority: question.priority,
-				dueDate: question.dueDate,
+				dueDate: dueDate.trim() || null,
 				tagIds: question.tagIds,
 				version: question.version
 			});
 			question = value;
 			answer = value.answerMarkdown ?? '';
+			dueDate = value.dueDate ?? '';
 			onSave?.(value);
 			invalidate('questions', `question:${value.id}`);
 			pushToast('Question updated', 'success');
@@ -59,7 +66,11 @@
 	></textarea><label for="status">Status</label><select id="status" bind:value={status}
 		><option value="unanswered">Unanswered</option><option value="in_progress">In progress</option
 		><option value="deferred">Deferred</option><option value="answered">Answered</option></select
-	>{#if question.status === 'answered'}<button type="button" class="secondary" onclick={reopen}
+	>{#if status === 'deferred'}<label for="resume-date">Resume date</label><input
+		id="resume-date"
+		type="date"
+		bind:value={dueDate}
+	/>{/if}{#if question.status === 'answered'}<button type="button" class="secondary" onclick={reopen}
 			>Reopen in progress</button
 		>{/if}{#if error}<div class="error" role="alert">{error}</div>{/if}<button
 		class="save"
@@ -80,7 +91,8 @@
 		font-weight: 650;
 	}
 	textarea,
-	select {
+	select,
+	input {
 		padding: 0.65rem;
 		border: 1px solid #cbd5e1;
 		border-radius: 0.4rem;

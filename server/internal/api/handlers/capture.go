@@ -323,7 +323,9 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 		apiErr = problem.Validation("The records must belong to the same workspace")
 	default:
 		message := strings.ToLower(err.Error())
-		if strings.Contains(message, "required") || strings.Contains(message, "invalid") || strings.Contains(message, "directive") || strings.Contains(message, "must be") || strings.Contains(message, "confirmation") || strings.Contains(message, "already linked") {
+		if strings.Contains(message, "resume date") {
+			apiErr = problem.Validation(err.Error(), problem.FieldError{Field: "dueDate", Message: err.Error()})
+		} else if strings.Contains(message, "required") || strings.Contains(message, "invalid") || strings.Contains(message, "directive") || strings.Contains(message, "must be") || strings.Contains(message, "confirmation") || strings.Contains(message, "already linked") {
 			apiErr = problem.Validation(err.Error())
 		} else {
 			apiErr = err

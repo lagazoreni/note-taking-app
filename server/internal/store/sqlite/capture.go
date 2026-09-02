@@ -198,7 +198,7 @@ func (s *CaptureStore) UpdateQuestion(ctx context.Context, id string, write doma
 		return domain.Question{}, err
 	}
 	q := domain.Question{ID: id, WorkspaceID: old.WorkspaceID, QuestionText: write.QuestionText, Kind: old.Kind, AnswerMarkdown: write.AnswerMarkdown, Status: write.Status, Priority: write.Priority, DueDate: write.DueDate}
-	if err := domain.ValidateTransition(old.Status, q.Status, q.AnswerMarkdown); err != nil {
+	if err := domain.ValidateTransition(old.Status, q.Status, q.AnswerMarkdown, q.DueDate); err != nil {
 		return domain.Question{}, err
 	}
 	if err := q.Validate(); err != nil {

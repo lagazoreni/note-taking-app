@@ -181,24 +181,24 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 `ValidateTransition(from, to QuestionStatus, answer *string)` lives in `server/internal/domain/question_lifecycle.go`. Callers (update both so the build succeeds): `server/internal/store/sqlite/capture.go` `UpdateQuestion` (passes `q.AnswerMarkdown`) and `server/internal/store/sqlite/lifecycle.go` `UpdateLifecycle`. There is **no** `server/internal/service/lifecycle.go`. `server/internal/api/handlers/lifecycle.go` is a comment stub; real PUT is `updateQuestion` in `server/internal/api/handlers/capture.go`. `writeStoreError` already 422s messages containing `required` without field errors. `data-model.md` already has the deferred resume-date row — do not rewrite it. `QuestionSchedule.svelte` already has `#due-date`; do not duplicate that control in T159 — add `#resume-date` on the lifecycle form only.
 
-- [ ] T157 [US10] Update `server/internal/domain/question_lifecycle.go` and the two store callers.
+- [x] T157 [US10] Update `server/internal/domain/question_lifecycle.go` and the two store callers.
   **Read:** `question_lifecycle.go`, `server/internal/store/sqlite/capture.go` `UpdateQuestion`, `server/internal/store/sqlite/lifecycle.go` `UpdateLifecycle`.
   **Do:** `ValidateTransition(from, to, answer, dueDate *string)`. If `to == StatusDeferred`, trimmed due date must be non-empty `YYYY-MM-DD`; else return `a resume date is required to defer a question`. Keep answer-required-for-answered. Pass `q.DueDate` from `UpdateQuestion` and the due date already on the loaded question from `UpdateLifecycle` (that helper does not accept a new due date — still pass `q.DueDate` so deferred-without-date fails if the stored value is empty). Do **not** reject existing rows on read.
   **Do not:** add a column; do not fail import of legacy deferred rows; do not edit `data-model.md`.
   **Verify:** `go -C server test ./internal/domain ./internal/store/sqlite -count=1`
 
-- [ ] T158 [US10] Map the resume-date error to a 422 field error.
+- [x] T158 [US10] Map the resume-date error to a 422 field error.
   **Read:** `server/internal/api/handlers/capture.go` `writeStoreError` and `server/internal/api/problem/problem.go` `Validation` / `FieldError`.
   **Do:** When the error message contains `resume date`, write `problem.Validation` with `FieldError{Field: "dueDate", Message: ...}` (status 422). Leave `sqlite.ErrConflict` as the existing version-conflict 409. Do not create a service package. Do not edit the comment-only `handlers/lifecycle.go`.
   **Verify:** `go -C server test ./internal/domain ./internal/store/sqlite ./internal/api/handlers -count=1`
 
-- [ ] T159 [US10] Client-side reject deferred with no date in `web/src/lib/components/QuestionLifecycle.svelte`.
+- [x] T159 [US10] Client-side reject deferred with no date in `web/src/lib/components/QuestionLifecycle.svelte`.
   **Read:** that file only (`save()` already sends `dueDate: question.dueDate`).
   **Do:** If `question.kind === 'annotation'`, skip this rule. If `status === 'deferred'` and there is no trimmed due date (`question.dueDate` in this task), set error `A resume date is required to defer a question.` and `return` without calling `questionsApi.update`.
   **Do not:** edit `QuestionSchedule.svelte`.
   **Verify:** `npm --prefix web test -- --run tests/component/QuestionLifecycle.test.ts`
 
-- [ ] T159a [US10] Resume-date input on the lifecycle form.
+- [x] T159a [US10] Resume-date input on the lifecycle form.
   **Read:** `web/src/lib/components/QuestionLifecycle.svelte` only.
   **Do:** `let dueDate = question.dueDate ?? ''`. When `status === 'deferred'`, show `<label for="resume-date">Resume date</label> <input id="resume-date" type="date" bind:value={dueDate}>`. On save, if deferred and `!dueDate.trim()`, use the T159 error and return. Include `dueDate: dueDate.trim() || null` on the existing `questionsApi.update` payload (keep `questionText`, answer, status, priority, tags, `version`).
   **Do not:** edit `QuestionSchedule.svelte`; do not apply the rule to annotations.
