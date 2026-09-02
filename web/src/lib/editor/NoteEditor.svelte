@@ -3,6 +3,7 @@
 	import { tagsApi } from '$lib/api/tags';
 	import {
 		directiveIds,
+		findSelectionInMarkdown,
 		insertAnswerAfterDirective,
 		insertDirective,
 		wrapSelection
@@ -271,6 +272,7 @@
 		text: string
 	): Promise<Question> {
 		if (!existing) throw new Error('Save the note before adding a highlight');
+		findSelectionInMarkdown(bodyMarkdown, passage);
 		const question = await questionsApi.create({
 			workspaceId,
 			questionText: text,

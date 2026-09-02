@@ -295,24 +295,24 @@ Split the unit file so each matcher slice can pass on its own. `wrapSelection` t
 
 `captureFromReader` currently `questionsApi.create` then `wrapSelection(bodyMarkdown, passage, question.id)` — that order orphans questions if wrap fails. `submitComposer` already assigns `composerError` from a thrown `Error` and does not close the composer. Do not parse links, headings, or HTML. No DB columns.
 
-- [ ] T168 [US12] Add `findSelectionInMarkdown` steps 1–2 in `web/src/lib/editor/directives.ts`.
+- [x] T168 [US12] Add `findSelectionInMarkdown` steps 1–2 in `web/src/lib/editor/directives.ts`.
   **Do:** `findSelectionInMarkdown(markdown: string, selectedText: string): { index: number; length: number }`. (1) Trimmed selection empty → throw `selection is empty`. (2) `markdown.indexOf(selectedText)` ≥ 0 → `{ index, length: selectedText.length }`. Else throw `Could not find that passage in the note. Try selecting plain text.` Do not change `wrapSelection` yet.
   **Verify:** `npm --prefix web test -- --run tests/unit/directives.test.ts` (T166 cases only need to keep passing; T166a/T166b may still fail).
 
-- [ ] T168a [US12] Whitespace collapse in `findSelectionInMarkdown`.
+- [x] T168a [US12] Whitespace collapse in `findSelectionInMarkdown`.
   **Do:** After exact `indexOf` fails, collapse runs of whitespace to one space on both strings with an index map back to markdown; if the collapsed selection occurs, return mapped `{ index, length }` in the original markdown. First match wins.
   **Verify:** `npm --prefix web test -- --run tests/unit/directives.test.ts` (T166 + T166a).
 
-- [ ] T168b [US12] Skip markdown markers in `findSelectionInMarkdown`.
+- [x] T168b [US12] Skip markdown markers in `findSelectionInMarkdown`.
   **Do:** After whitespace collapse fails, build a readable string by skipping `*`, `_`, and `` ` `` and collapsing whitespace, mapping each readable index to a markdown index; find the collapsed selection there; return mapped `{ index, length }` so markers stay inside the wrap (`**bold**` not `bold`). Else throw `Could not find that passage in the note. Try selecting plain text.`
   **Verify:** `npm --prefix web test -- --run tests/unit/directives.test.ts`
 
-- [ ] T168c [US12] Point `wrapSelection` at the finder.
+- [x] T168c [US12] Point `wrapSelection` at the finder.
   **Read:** `wrapSelection` in `web/src/lib/editor/directives.ts` only.
   **Do:** Use `findSelectionInMarkdown` and slice `markdown[index, index+length]` as the wrapped span. Keep the same `{{question:id}}…{{/question}}` output. Empty error stays `selection is empty`.
   **Verify:** `npm --prefix web test -- --run tests/unit/directives.test.ts`
 
-- [ ] T169 [US12] Reorder capture so match happens before create.
+- [x] T169 [US12] Reorder capture so match happens before create.
   **Read:** `captureFromReader` in `web/src/lib/editor/NoteEditor.svelte` only.
   **Do:** Preferred order: `findSelectionInMarkdown(bodyMarkdown, passage)` → `questionsApi.create` → `wrapSelection` with the returned id → `save()`. If match/wrap throws, do not create. If save fails, keep existing failed-save draft behavior. Do not rewrite `submitComposer` — it already surfaces `cause.message` as `composerError`.
   **Verify:** `npm --prefix web test -- --run tests/unit/directives.test.ts tests/component/NoteReader.test.ts tests/component/NoteEditor.test.ts` then `npx playwright test tests/e2e/us12-passage-match.spec.ts tests/e2e/us1-notes-highlight.spec.ts`

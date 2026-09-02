@@ -63,13 +63,94 @@ export function insertDirective(markdown: string, id: string): string {
 	const suffix = markdown && !markdown.endsWith('\n') ? '\n\n' : '';
 	return `${markdown}${suffix}{{question:${id.toLowerCase()}}}`;
 }
-export function wrapSelection(markdown: string, selectedText: string, id: string): string {
-	if (!selectedText) throw new Error('selection is empty');
+
+export function findSelectionInMarkdown(
+	markdown: string,
+	selectedText: string
+): { index: number; length: number } {
+	if (!selectedText.trim()) throw new Error('selection is empty');
+
+	const markerCharacters = new Set(['*', '_', '`']);
+	const rangeIncludingMarkers = (start: number, end: number) => {
+		let rangeStart = start;
+		let rangeEnd = end;
+		if (
+			markerCharacters.has(markdown[rangeStart - 1] ?? '') &&
+			markerCharacters.has(markdown[rangeEnd] ?? '')
+		) {
+			while (rangeStart > 0 && markerCharacters.has(markdown[rangeStart - 1] ?? '')) rangeStart -= 1;
+			while (rangeEnd < markdown.length && markerCharacters.has(markdown[rangeEnd] ?? '')) rangeEnd += 1;
+		}
+		return { index: rangeStart, length: rangeEnd - rangeStart };
+	};
+
 	const index = markdown.indexOf(selectedText);
-	if (index < 0) throw new Error('selection not found in note');
+	if (index >= 0) return rangeIncludingMarkers(index, index + selectedText.length);
+
+	const collapseWhitespace = (
+		value: string,
+		skip?: (character: string) => boolean
+	): { text: string; indexMap: number[]; endMap: number[] } => {
+		const characters: string[] = [];
+		const indexMap: number[] = [];
+		const endMap: number[] = [];
+		let sourceIndex = 0;
+
+		while (sourceIndex < value.length) {
+			const character = value[sourceIndex];
+			if (skip?.(character)) {
+				sourceIndex += 1;
+				continue;
+			}
+
+			const whitespace = value.slice(sourceIndex).match(/^\s+/);
+			if (whitespace) {
+				characters.push(' ');
+				indexMap.push(sourceIndex);
+				endMap.push(sourceIndex + whitespace[0].length);
+				sourceIndex += whitespace[0].length;
+				continue;
+			}
+
+			characters.push(character);
+			indexMap.push(sourceIndex);
+			endMap.push(sourceIndex + 1);
+			sourceIndex += 1;
+		}
+
+		return { text: characters.join(''), indexMap, endMap };
+	};
+
+	const collapsedSelection = selectedText.replace(/\s+/g, ' ');
+	const collapsedMarkdown = collapseWhitespace(markdown);
+	const collapsedIndex = collapsedMarkdown.text.indexOf(collapsedSelection);
+	if (collapsedIndex >= 0) {
+		const end = collapsedIndex + collapsedSelection.length;
+		return rangeIncludingMarkers(
+			collapsedMarkdown.indexMap[collapsedIndex],
+			collapsedMarkdown.endMap[end - 1]
+		);
+	}
+
+	const readableMarkdown = collapseWhitespace(markdown, (character) => markerCharacters.has(character));
+	const readableIndex = readableMarkdown.text.indexOf(collapsedSelection);
+	if (readableIndex >= 0) {
+		const end = readableIndex + collapsedSelection.length;
+		return rangeIncludingMarkers(
+			readableMarkdown.indexMap[readableIndex],
+			readableMarkdown.endMap[end - 1]
+		);
+	}
+
+	throw new Error('Could not find that passage in the note. Try selecting plain text.');
+}
+
+export function wrapSelection(markdown: string, selectedText: string, id: string): string {
+	const { index, length } = findSelectionInMarkdown(markdown, selectedText);
+	const selectedSpan = markdown.slice(index, index + length);
 	const before = markdown.slice(0, index);
-	const after = markdown.slice(index + selectedText.length);
-	return `${before}{{question:${id.toLowerCase()}}}${selectedText}{{/question}}${after}`;
+	const after = markdown.slice(index + length);
+	return `${before}{{question:${id.toLowerCase()}}}${selectedSpan}{{/question}}${after}`;
 }
 
 function startsWithAnswerBlockquote(text: string, answer: string): boolean {
