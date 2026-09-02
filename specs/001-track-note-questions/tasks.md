@@ -120,7 +120,7 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 ### Tests for Phase 15 (write first; they must fail)
 
-- [ ] T150 [P] [US9] Add `web/tests/unit/nextQueue.test.ts` covering `buildNextQueue` in `web/src/lib/questions/nextQueue.ts` with a fixed `today` of `2026-04-01`:
+- [x] T150 [P] [US9] Add `web/tests/unit/nextQueue.test.ts` covering `buildNextQueue` in `web/src/lib/questions/nextQueue.ts` with a fixed `today` of `2026-04-01`:
   - overdue: `dueDate < today` and status not `deferred`
   - due today: `dueDate === today` and status not `deferred`
   - in progress: `in_progress` not already in overdue/due today
@@ -128,8 +128,8 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
   - high priority: `high` or `urgent`, status `unanswered` or `in_progress`, not already listed
   - omit: `answered`, `kind=annotation`, `deferred` with `dueDate > today`, `deferred` with null due date
   - hide empty sections; never duplicate an id across sections
-- [ ] T151 [P] [US9] Add `web/tests/component/NextQueue.test.ts` only: empty guidance `Nothing in Next. Capture a question from a note, or set a due date.` and the five section headings when those sections have items. Do not write Playwright in this task.
-- [ ] T151a [P] [US9] Add `tests/e2e/us9-next-queue.spec.ts`: one overdue question appears under Overdue; an answered question does not; clicking opens `/questions/{id}` (query string from T144 is allowed).
+- [x] T151 [P] [US9] Add `web/tests/component/NextQueue.test.ts` only: empty guidance `Nothing in Next. Capture a question from a note, or set a due date.` and the five section headings when those sections have items. Do not write Playwright in this task.
+- [x] T151a [P] [US9] Add `tests/e2e/us9-next-queue.spec.ts`: one overdue question appears under Overdue; an answered question does not; clicking opens `/questions/{id}` (query string from T144 is allowed).
 
 ### Implementation for Phase 15
 
