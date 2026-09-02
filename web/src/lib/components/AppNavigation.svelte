@@ -18,6 +18,7 @@
 			<a class:active={page.url.pathname === '/questions'} href={`/questions${workspace}`}
 				>Active Questions</a
 			>
+			<a class:active={page.url.pathname === '/next'} href={`/next${workspace}`}>Next</a>
 			<a class:active={page.url.pathname.startsWith('/answered')} href={`/answered${workspace}`}
 				>Answered</a
 			>

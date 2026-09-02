@@ -135,26 +135,26 @@ Read-mode markup today is `{#if mode === 'read' && existing}<NoteReader markdown
 
 `questionsApi.list` already accepts `cursor` and `pageSize` and returns `nextCursor`. Copy workspace loading/error/retry from `web/src/routes/questions/+page.svelte` (`currentWorkspaceId`). There is no `/next` route yet. `AppNavigation.svelte` has Active Questions then Answered inside `{#if $workspaceReady}`.
 
-- [ ] T152 [P] [US9] Create `web/src/lib/questions/nextQueue.ts`.
+- [x] T152 [P] [US9] Create `web/src/lib/questions/nextQueue.ts`.
   **Do:** Export `buildNextQueue(questions: Question[], today: string): { id: string; title: string; items: Question[] }[]`. `today` is `YYYY-MM-DD`. Filter to active questions only (`kind` missing or `question`; status `unanswered` | `in_progress` | `deferred`). Apply FR-047. Return only non-empty sections with titles `Overdue`, `Due today`, `In progress`, `Deferred ready`, `High priority`.
   **Verify:** `npm --prefix web test -- --run tests/unit/nextQueue.test.ts`
 
-- [ ] T153 [US9] Create presentational `web/src/lib/components/NextQueue.svelte`.
+- [x] T153 [US9] Create presentational `web/src/lib/components/NextQueue.svelte`.
   **Do:** `export let sections: { id: string; title: string; items: Question[] }[] = []`. Render each non-empty section heading and its items. Each item links `/questions/{id}?noteId={linkedNotes[0].id}` when `linkedNotes[0]` exists, else `/questions/{id}`. If `sections` is empty, show `Nothing in Next. Capture a question from a note, or set a due date.` No filter widgets. Match `export let`.
   **Verify:** `npm --prefix web test -- --run tests/component/NextQueue.test.ts`
 
-- [ ] T153a [US9] Create `web/src/routes/next/+page.svelte` (first page of questions only).
+- [x] T153a [US9] Create `web/src/routes/next/+page.svelte` (first page of questions only).
   **Read:** `web/src/routes/questions/+page.svelte`, `web/src/lib/api/questions.ts`, `web/src/lib/stores/workspace.ts`.
   **Do:** Require `$currentWorkspaceId`. Loading/error/retry required. `questionsApi.list({ workspaceId, status: ['unanswered','in_progress','deferred'], kind: 'question', pageSize: 200 })`. `today = new Date().toISOString().slice(0, 10)`. Pass `buildNextQueue(items, today)` into `NextQueue`. Do not follow `nextCursor` yet.
   **Do not:** add filter widgets; do not log question text.
   **Verify:** `npm --prefix web test -- --run tests/unit/nextQueue.test.ts tests/component/NextQueue.test.ts`
 
-- [ ] T153b [US9] Paginate Next.
+- [x] T153b [US9] Paginate Next.
   **Read:** `web/src/routes/next/+page.svelte` only.
   **Do:** Follow `nextCursor` up to 5 list calls. Concatenate `items`. If `nextCursor` remains after 5 pages, show `Showing the first loaded questions.` above or below the queue.
   **Verify:** `npm --prefix web test -- --run tests/unit/nextQueue.test.ts tests/component/NextQueue.test.ts`
 
-- [ ] T154 [US9] Add Next to `web/src/lib/components/AppNavigation.svelte` after the Active Questions `<a>`: `href={`/next${workspace}`}` labelled `Next`, `class:active={page.url.pathname === '/next'}` (do not use `startsWith`). Only inside the existing `{#if $workspaceReady}` branch.
+- [x] T154 [US9] Add Next to `web/src/lib/components/AppNavigation.svelte` after the Active Questions `<a>`: `href={`/next${workspace}`}` labelled `Next`, `class:active={page.url.pathname === '/next'}` (do not use `startsWith`). Only inside the existing `{#if $workspaceReady}` branch.
   **Verify:** `npx playwright test tests/e2e/us9-next-queue.spec.ts tests/e2e/us8-answer-in-context.spec.ts`
 
 **Landmines:** Client-side grouping only. Do not add `queue=` to OpenAPI. Annotations never appear (`kind=question` on the list call). Do not log question text.
