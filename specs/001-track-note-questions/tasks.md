@@ -382,16 +382,16 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 `onWindowKeydown` today handles **Escape only** (close composer or toolbar).
 
-- [ ] T175 [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: with a selection and no composer, `keydown` Q opens question composer, A annotation, L picker (if `onLinkExisting` provided), Escape closes toolbar. With composer open or target `input`/`textarea`, Q does not toggle kind.
-- [ ] T175a [P] [US12] Add `tests/e2e/us12-keyboard-capture.spec.ts` for Q then Escape on a selected sentence.
+- [x] T175 [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: with a selection and no composer, `keydown` Q opens question composer, A annotation, L picker (if `onLinkExisting` provided), Escape closes toolbar. With composer open or target `input`/`textarea`, Q does not toggle kind.
+- [x] T175a [P] [US12] Add `tests/e2e/us12-keyboard-capture.spec.ts` for Q then Escape on a selected sentence.
 
 ### Implementation for Phase 20
 
-- [ ] T176 [US12] Extend `onWindowKeydown` in `web/src/lib/editor/NoteReader.svelte` only.
+- [x] T176 [US12] Extend `onWindowKeydown` in `web/src/lib/editor/NoteReader.svelte` only.
   **Do:** Keep the existing Escape branch. Then: if `event.defaultPrevented`, return. If target is `input, textarea, select, [contenteditable]`, return (Escape may still close composer). If composer open, ignore Q/A/L. If no `selectedPassage` and no `showToolbar`, ignore Q/A/L. Otherwise: `q`/`Q` → `openComposer('question')`; `a`/`A` → `openComposer('annotation')`; `l`/`L` → open the T172 picker if `onLinkExisting` exists. `preventDefault` only when handling those keys. Do not handle shortcuts with Ctrl/Meta/Alt.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts` then `npx playwright test tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/accessibility-notes.spec.ts`
 
-- [ ] T177 [P] [US12] Add a one-line hint on the reading toolbar in `NoteReader.svelte`: `Q ask · A annotate · L link · Esc cancel`. No new route.
+- [x] T177 [P] [US12] Add a one-line hint on the reading toolbar in `NoteReader.svelte`: `Q ask · A annotate · L link · Esc cancel`. No new route.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts` — assert the hint exists when the toolbar is visible.
 
 **Landmines:** Do not steal keys in Title/Note fields. Do not change `/notes/new`. Keep existing Escape/outside-click dismissal.

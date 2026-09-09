@@ -44,6 +44,7 @@ describe('NoteReader', () => {
 		await fireEvent.mouseUp(screen.getByRole('article', { name: 'Reading note' }));
 		expect(screen.getByRole('button', { name: 'Ask a question' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Add annotation' })).toBeInTheDocument();
+		expect(screen.getByText('Q ask · A annotate · L link · Esc cancel')).toBeInTheDocument();
 	});
 
 	it('opens a card when a highlight is clicked', async () => {
@@ -76,6 +77,96 @@ describe('NoteReader', () => {
 
 		expect(onLinkExisting).toHaveBeenCalledOnce();
 		expect(onLinkExisting).toHaveBeenCalledWith('Select this passage.', question);
+	});
+
+	it('opens the question composer with Q for a selected passage', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.keyDown(window, { key: 'q' });
+
+		expect(screen.getByLabelText('Question text')).toBeInTheDocument();
+	});
+
+	it('opens the annotation composer with A for a selected passage', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.keyDown(window, { key: 'a' });
+
+		expect(screen.getByLabelText('Annotation')).toBeInTheDocument();
+	});
+
+	it('opens the existing-question picker with L when linking is available', async () => {
+		const onLinkExisting = vi.fn().mockResolvedValue(question);
+		render(NoteReader, {
+			markdown: 'Select this passage.',
+			questions: [],
+			linkableQuestions: [question],
+			onLinkExisting
+		});
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.keyDown(window, { key: 'l' });
+
+		expect(screen.getByRole('region', { name: 'Find an existing question' })).toBeInTheDocument();
+	});
+
+	it('dismisses the selection toolbar with Escape', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		expect(screen.getByRole('toolbar', { name: 'Selection actions' })).toBeInTheDocument();
+
+		await fireEvent.keyDown(window, { key: 'Escape' });
+
+		expect(screen.queryByRole('toolbar', { name: 'Selection actions' })).not.toBeInTheDocument();
+	});
+
+	it('ignores Q while the composer is open', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Add annotation' }));
+		expect(screen.getByLabelText('Annotation')).toBeInTheDocument();
+
+		await fireEvent.keyDown(window, { key: 'q' });
+
+		expect(screen.getByLabelText('Annotation')).toBeInTheDocument();
+		expect(screen.queryByLabelText('Question text')).not.toBeInTheDocument();
+	});
+
+	it('ignores Q when focus is in an input or textarea', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+
+		const input = document.createElement('input');
+		const textarea = document.createElement('textarea');
+		document.body.append(input, textarea);
+		try {
+			await fireEvent.keyDown(input, { key: 'q' });
+			await fireEvent.keyDown(textarea, { key: 'q' });
+		} finally {
+			input.remove();
+			textarea.remove();
+		}
+
+		expect(screen.getByRole('toolbar', { name: 'Selection actions' })).toBeInTheDocument();
+		expect(screen.queryByLabelText('Question text')).not.toBeInTheDocument();
+		expect(screen.queryByLabelText('Annotation')).not.toBeInTheDocument();
 	});
 
 	it('opens the matching highlight card when focusQuestionId is set', () => {

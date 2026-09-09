@@ -173,18 +173,39 @@
 	}
 
 	function onWindowKeydown(event: KeyboardEvent) {
-		if (event.key !== 'Escape') return;
-		if (composerOpen) {
-			if (!composerSaving) cancelComposer();
+		if (event.key === 'Escape') {
+			if (composerOpen) {
+				if (!composerSaving) cancelComposer();
+				return;
+			}
+			if (pickerOpen) {
+				if (!pickerSaving) cancelPicker();
+				return;
+			}
+			if (showToolbar) {
+				event.preventDefault();
+				clearSelection();
+			}
 			return;
 		}
-		if (pickerOpen) {
-			if (!pickerSaving) cancelPicker();
-			return;
-		}
-		if (showToolbar) {
+
+		if (event.defaultPrevented) return;
+		const target = event.target as Element | null;
+		if (target?.closest?.('input, textarea, select, [contenteditable]')) return;
+		if (composerOpen) return;
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (!selectedPassage && !showToolbar) return;
+
+		const key = event.key.toLowerCase();
+		if (key === 'q') {
 			event.preventDefault();
-			clearSelection();
+			openComposer('question');
+		} else if (key === 'a') {
+			event.preventDefault();
+			openComposer('annotation');
+		} else if (key === 'l' && onLinkExisting) {
+			event.preventDefault();
+			openLinkPicker();
 		}
 	}
 
@@ -234,6 +255,7 @@
 			{#if onLinkExisting}
 				<button type="button" onclick={openLinkPicker}>Link existing question</button>
 			{/if}
+			<span class="keyboard-hint">Q ask · A annotate · L link · Esc cancel</span>
 			<button type="button" class="secondary" onclick={clearSelection}>Cancel</button>
 		</div>
 	{/if}
