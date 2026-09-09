@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AnnotationCard from '$lib/components/AnnotationCard.svelte';
+	import QuestionPicker from '$lib/components/QuestionPicker.svelte';
 	import { renderNoteHtml } from './markdown';
 	import { tokenizeDirectives } from './directives';
 	import type { Question, QuestionKind } from '$lib/types/question';
@@ -11,6 +12,9 @@
 		((kind: QuestionKind, passage: string, text: string) => Promise<Question | void>) | undefined =
 		undefined;
 	export let onInsertAnswer: ((question: Question) => Promise<void> | void) | undefined = undefined;
+	export let onLinkExisting:
+		((passage: string, question: Question) => Promise<Question | void>) | undefined = undefined;
+	export let linkableQuestions: Question[] = [];
 
 	let showToolbar = false;
 	let selectedPassage = '';
@@ -19,6 +23,9 @@
 	let composerText = '';
 	let composerSaving = false;
 	let composerError = '';
+	let pickerOpen = false;
+	let pickerSaving = false;
+	let pickerError = '';
 	let openQuestion: Question | null = null;
 	let openPassage = '';
 	let actionLayer: HTMLDivElement | null = null;
@@ -39,6 +46,13 @@
 		composerOpen = false;
 		composerText = '';
 		composerError = '';
+		clearSelection();
+	}
+
+	function cancelPicker() {
+		if (pickerSaving) return;
+		pickerOpen = false;
+		pickerError = '';
 		clearSelection();
 	}
 
@@ -96,8 +110,31 @@
 		showToolbar = false;
 	}
 
+	function openLinkPicker() {
+		if (!onLinkExisting) return;
+		pickerError = '';
+		pickerOpen = true;
+		showToolbar = false;
+	}
+
+	async function selectExisting(question: Question) {
+		if (!onLinkExisting || pickerSaving || !selectedPassage) return;
+		const passage = selectedPassage;
+		pickerSaving = true;
+		pickerError = '';
+		try {
+			await onLinkExisting(passage, question);
+			pickerOpen = false;
+			clearSelection();
+		} catch (cause) {
+			pickerError = cause instanceof Error ? cause.message : 'Could not link question';
+		} finally {
+			pickerSaving = false;
+		}
+	}
+
 	function dismissFromOutside(event: MouseEvent) {
-		if (!showToolbar && !composerOpen) return;
+		if (!showToolbar && !composerOpen && !pickerOpen) return;
 		const target = event.target as Node | null;
 		if (actionLayer && target && actionLayer.contains(target)) return;
 
@@ -111,10 +148,20 @@
 			.some(
 				(node) =>
 					node instanceof HTMLElement &&
-					(node.classList.contains('toolbar') || node.classList.contains('composer'))
+					(node.classList.contains('toolbar') ||
+						node.classList.contains('composer') ||
+						node.classList.contains('picker-layer'))
 			);
 		if (cameFromActionLayer) return;
-		if (!composerSaving) cancelComposer();
+		if (composerOpen) {
+			if (!composerSaving) cancelComposer();
+			return;
+		}
+		if (pickerOpen) {
+			if (!pickerSaving) cancelPicker();
+			return;
+		}
+		clearSelection();
 	}
 
 	function onWindowClick(event: MouseEvent) {
@@ -129,6 +176,10 @@
 		if (event.key !== 'Escape') return;
 		if (composerOpen) {
 			if (!composerSaving) cancelComposer();
+			return;
+		}
+		if (pickerOpen) {
+			if (!pickerSaving) cancelPicker();
 			return;
 		}
 		if (showToolbar) {
@@ -180,7 +231,19 @@
 		<div class="toolbar" role="toolbar" aria-label="Selection actions" bind:this={actionLayer}>
 			<button type="button" onclick={() => openComposer('question')}>Ask a question</button>
 			<button type="button" onclick={() => openComposer('annotation')}>Add annotation</button>
+			{#if onLinkExisting}
+				<button type="button" onclick={openLinkPicker}>Link existing question</button>
+			{/if}
 			<button type="button" class="secondary" onclick={clearSelection}>Cancel</button>
+		</div>
+	{/if}
+	{#if pickerOpen}
+		<div class="picker-layer" bind:this={actionLayer}>
+			<QuestionPicker questions={linkableQuestions} onSelect={selectExisting} />
+			{#if pickerError}<div class="error" role="alert">{pickerError}</div>{/if}
+			<button type="button" class="secondary" onclick={cancelPicker} disabled={pickerSaving}>
+				Cancel
+			</button>
 		</div>
 	{/if}
 	{#if composerOpen}
@@ -270,7 +333,8 @@
 		vertical-align: middle;
 	}
 	.toolbar,
-	.composer {
+	.composer,
+	.picker-layer {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
@@ -280,7 +344,8 @@
 		border-radius: 0.5rem;
 		padding: 0.75rem;
 	}
-	.composer {
+	.composer,
+	.picker-layer {
 		display: grid;
 	}
 	.composer blockquote {

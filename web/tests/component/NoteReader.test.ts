@@ -57,6 +57,27 @@ describe('NoteReader', () => {
 		expect(screen.getByText('What causes this?')).toBeInTheDocument();
 	});
 
+	it('opens the existing-question picker and links the selected passage', async () => {
+		const onLinkExisting = vi.fn().mockResolvedValue(question);
+		render(NoteReader, {
+			markdown: 'Select this passage.',
+			questions: [],
+			linkableQuestions: [question],
+			onLinkExisting
+		});
+		const article = screen.getByRole('article', { name: 'Reading note' });
+
+		mockSelection('Select this passage.');
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Link existing question' }));
+
+		expect(screen.getByRole('region', { name: 'Find an existing question' })).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: /What causes this\?/ }));
+
+		expect(onLinkExisting).toHaveBeenCalledOnce();
+		expect(onLinkExisting).toHaveBeenCalledWith('Select this passage.', question);
+	});
+
 	it('opens the matching highlight card when focusQuestionId is set', () => {
 		render(NoteReader, {
 			markdown: `Lead {{question:${id}}}selected passage{{/question}} tail`,

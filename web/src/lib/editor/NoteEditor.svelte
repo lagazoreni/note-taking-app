@@ -296,6 +296,29 @@
 		return question;
 	}
 
+	async function linkExistingFromReader(passage: string, question: Question): Promise<Question> {
+		if (!existing) throw new Error('Save the note before adding a highlight');
+		const currentIds = directiveIds(bodyMarkdown);
+		if (currentIds.includes(question.id)) {
+			throw new Error('That question is already in this note.');
+		}
+
+		findSelectionInMarkdown(bodyMarkdown, passage);
+		const nextBody = wrapSelection(bodyMarkdown, passage, question.id);
+		const nextLinks: NoteQuestionLinkWrite[] = directiveIds(nextBody).map((id, position) => {
+			const current = links.find((link) => link.questionId === id);
+			return current
+				? { ...current, position }
+				: { questionId: id, displayMode: 'collapsed' as DisplayMode, position };
+		});
+		bodyMarkdown = nextBody;
+		links = nextLinks;
+		questions = [...questions, question];
+		const savedNote = await save();
+		if (!savedNote) throw new Error(error || 'Could not save highlight');
+		return question;
+	}
+
 	function retryTags() {
 		if (workspaceId) void loadAvailableTags(workspaceId);
 	}
@@ -340,6 +363,11 @@
 			focusQuestionId={focusId}
 			onCapture={captureFromReader}
 			onInsertAnswer={insertAnswer}
+			linkableQuestions={availableQuestions.filter(
+				(question) =>
+					question.kind === 'question' && !directiveIds(bodyMarkdown).includes(question.id)
+			)}
+			onLinkExisting={linkExistingFromReader}
 		/>
 		<NoteQuestionRail
 			{questions}

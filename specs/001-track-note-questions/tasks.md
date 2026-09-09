@@ -337,29 +337,29 @@ Split the unit file so each matcher slice can pass on its own. `wrapSelection` t
 
 Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPicker` already takes `questions` + `onSelect` and shows `Unlinked` when `linkedNotes` is empty. Edit-mode `selectExisting` in `NoteEditor` inserts a **bare** token at the end — do not reuse that for reading wrap. `web/src/routes/questions/+page.svelte` has no New question control. `ActiveQuestions.svelte` is only a `QuestionList` wrapper.
 
-- [ ] T170 [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: toolbar has `Link existing question`; it opens the picker; choosing an item calls `onLinkExisting(passage, question)`.
-- [ ] T170a [P] [US12] Extend `web/tests/component/QuestionPicker.test.ts` only if T170 needs picker behavior that is not already covered. Skip this task when existing picker tests already prove search + `onSelect` + Unlinked copy.
-- [ ] T170b [P] [US12] Add or extend `web/tests/component/ActiveQuestions.test.ts` (test the Active Questions page component if easier): `New question` without a passage posts only question fields (no note wrap).
-- [ ] T171 [P] [US12] Add `tests/e2e/us12-link-attach.spec.ts`: (1) link existing question onto a second note from reading; both notes listed on the question page; (2) create unlinked from Active Questions; it appears there; attach to a passage from reading; highlight opens the same question.
+- [x] T170 [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: toolbar has `Link existing question`; it opens the picker; choosing an item calls `onLinkExisting(passage, question)`.
+- [x] T170a [P] [US12] Extend `web/tests/component/QuestionPicker.test.ts` only if T170 needs picker behavior that is not already covered. Skip this task when existing picker tests already prove search + `onSelect` + Unlinked copy.
+- [x] T170b [P] [US12] Add or extend `web/tests/component/ActiveQuestions.test.ts` (test the Active Questions page component if easier): `New question` without a passage posts only question fields (no note wrap).
+- [x] T171 [P] [US12] Add `tests/e2e/us12-link-attach.spec.ts`: (1) link existing question onto a second note from reading; both notes listed on the question page; (2) create unlinked from Active Questions; it appears there; attach to a passage from reading; highlight opens the same question.
 
 ### Implementation for Phase 19
 
-- [ ] T172 [US12] Reading toolbar + picker UI in `web/src/lib/editor/NoteReader.svelte` only.
+- [x] T172 [US12] Reading toolbar + picker UI in `web/src/lib/editor/NoteReader.svelte` only.
   **Read:** that file and `web/src/lib/components/QuestionPicker.svelte`.
   **Do:** `export let onLinkExisting: ((passage: string, question: Question) => Promise<Question | void>) | undefined`. `export let linkableQuestions: Question[] = []`. Toolbar button `Link existing question` (only useful when `onLinkExisting` is set). Opens `QuestionPicker` with `linkableQuestions`. Choosing an item calls `onLinkExisting(selectedPassage, question)`. Keep Cancel/Escape/outside-click dismissal for the picker the same way the composer is dismissed. Do not create or wrap here.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/QuestionPicker.test.ts`
 
-- [ ] T172a [US12] Wrap-without-create in `web/src/lib/editor/NoteEditor.svelte`.
+- [x] T172a [US12] Wrap-without-create in `web/src/lib/editor/NoteEditor.svelte`.
   **Read:** `captureFromReader`, `selectExisting` (edit-mode bare insert — do not call it), `availableQuestions`, `directiveIds`.
   **Do:** Pass `linkableQuestions` = workspace questions with `kind: 'question'` excluding ids already in `directiveIds(bodyMarkdown)`. `linkExistingFromReader(passage, question)`: if `directiveIds` already contains `question.id`, throw `That question is already in this note.` and do not save. Else `findSelectionInMarkdown` / `wrapSelection` first (no `questionsApi.create`); rebuild `links` from `directiveIds`; `save()`; return the same question. Pass `onLinkExisting={linkExistingFromReader}`.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/NoteEditor.test.ts tests/component/QuestionPicker.test.ts`
 
-- [ ] T173 [US12] Unlinked create on `web/src/routes/questions/+page.svelte`.
+- [x] T173 [US12] Unlinked create on `web/src/routes/questions/+page.svelte`.
   **Do:** Button labelled `New question`. Short form: question text required. `questionsApi.create({ workspaceId, questionText, kind: 'question', status: 'unanswered', priority: 'none', tagIds: [] })`. No note update. Reload the list. Empty text does not POST.
   **Do not:** set status answered; do not attach a fake directive; do not edit `NoteEditor`.
   **Verify:** `npm --prefix web test -- --run tests/component/ActiveQuestions.test.ts` (or the page test added in T170b)
 
-- [ ] T174 [US12] Keep unlinked questions in the reading picker.
+- [x] T174 [US12] Keep unlinked questions in the reading picker.
   **Read:** `QuestionPicker.svelte` (already renders `Unlinked`) and the `linkableQuestions` filter in `NoteEditor.svelte`.
   **Do:** Do not filter out questions with empty `linkedNotes`. After attach, Active Questions still shows one row for that id (no second create). If T172a already does this, only run verify.
   **Verify:** `npx playwright test tests/e2e/us12-link-attach.spec.ts tests/e2e/us2-shared-question.spec.ts tests/e2e/us1-notes-highlight.spec.ts`
