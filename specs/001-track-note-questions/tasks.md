@@ -404,7 +404,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 **Purpose**: Keep the mental model honest after the new slices.
 
-- [ ] T178 [P] Refresh [`PROJECT_MAP.md`](../../PROJECT_MAP.md): remaining-gaps list must match reality; add file pointers for `QuestionContext.svelte`, `NoteExcerpt.svelte`, `NoteQuestionRail.svelte`, `nextQueue.ts`, `/next`, `findSelectionInMarkdown`, and keyboard shortcuts. Known-bugs table: only real failures.
+- [x] T178 [P] Refresh [`PROJECT_MAP.md`](../../PROJECT_MAP.md): remaining-gaps list must match reality; add file pointers for `QuestionContext.svelte`, `NoteExcerpt.svelte`, `NoteQuestionRail.svelte`, `nextQueue.ts`, `/next`, `findSelectionInMarkdown`, and keyboard shortcuts. Known-bugs table: only real failures.
 - [ ] T179 Trace FR-041 through FR-047 to tests in `specs/001-track-note-questions/traceability.md`. Do not invent passing evidence.
 - [ ] T179a Trace FR-048 through FR-055 in the same file. Do not invent passing evidence.
 - [ ] T179b Trace SC-011 through SC-014 in the same file. Do not invent passing evidence.
