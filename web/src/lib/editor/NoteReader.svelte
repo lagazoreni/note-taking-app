@@ -29,6 +29,15 @@
 	let pickerError = '';
 	let openQuestion: Question | null = null;
 	let openPassage = '';
+	type AnchorRect = {
+		top: number;
+		left: number;
+		right: number;
+		bottom: number;
+		width: number;
+		height: number;
+	};
+	let openAnchorRect: AnchorRect | null = null;
 	let actionLayer: HTMLDivElement | null = null;
 	let readerElement: HTMLDivElement | null = null;
 	let toolbarPosition: { top: number; left: number } | null = null;
@@ -173,6 +182,23 @@
 		updateSelectionPosition();
 	}
 
+	function getAnchorRect(element: Element): AnchorRect | null {
+		if (typeof element.getBoundingClientRect !== 'function') return null;
+		const rect = element.getBoundingClientRect();
+		const values = [rect.top, rect.left, rect.right, rect.bottom];
+		if (values.some((value) => !Number.isFinite(value))) return null;
+		const width = Number.isFinite(rect.width) ? rect.width : Math.max(0, rect.right - rect.left);
+		const height = Number.isFinite(rect.height) ? rect.height : Math.max(0, rect.bottom - rect.top);
+		return {
+			top: rect.top,
+			left: rect.left,
+			right: rect.right,
+			bottom: rect.bottom,
+			width,
+			height
+		};
+	}
+
 	onMount(() => {
 		if (!readerElement) return;
 
@@ -202,6 +228,7 @@
 			(item) => item.kind === 'question' && item.directive?.id === id
 		);
 		openPassage = token?.directive?.snippet || mark.textContent || '';
+		openAnchorRect = getAnchorRect(mark);
 		openQuestion = question;
 		clearSelection();
 	}
@@ -213,6 +240,7 @@
 				(item) => item.kind === 'question' && item.directive?.id === focusQuestionId
 			);
 			openPassage = token?.directive?.snippet || '';
+			openAnchorRect = null;
 			openQuestion = question;
 			clearSelection();
 		}
@@ -450,7 +478,11 @@
 		<AnnotationCard
 			question={openQuestion}
 			passage={openPassage}
-			onClose={() => (openQuestion = null)}
+			anchorRect={openAnchorRect}
+			onClose={() => {
+				openQuestion = null;
+				openAnchorRect = null;
+			}}
 			onInsertAnswer={() => onInsertAnswer?.(openQuestion!)}
 		/>
 	{/if}

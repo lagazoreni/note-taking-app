@@ -458,7 +458,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - Add `@media (max-width: 640px)` mobile overrides: if the selection is near edges, dock the toolbar/composer gracefully (e.g. pinned bottom bar or clamped floating sheet) so it remains 100% accessible on small screens.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T177f [US12] Anchor highlight card next to clicked highlight in `web/src/lib/components/AnnotationCard.svelte` and `web/src/lib/editor/NoteReader.svelte`.
+- [x] T177f [US12] Anchor highlight card next to clicked highlight in `web/src/lib/components/AnnotationCard.svelte` and `web/src/lib/editor/NoteReader.svelte`.
   **Read:** `web/src/lib/components/AnnotationCard.svelte` style block (`position: fixed; inset: auto 1rem 1rem auto;`) and `NoteReader.svelte` `onClick`.
   **Do:**
   - In `NoteReader.svelte` `onClick(event)`, record the clicked mark's bounding rect or relative position (`openAnchorRect` or `cardPosition`).
