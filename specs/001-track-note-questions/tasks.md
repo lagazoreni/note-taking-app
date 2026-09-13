@@ -511,7 +511,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - Horizontally align toolbar relative to selection start or center, clamped within reader/viewport padding so it doesn't overlap text awkwardly or clip viewport edges.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T177l [US12] Ensure selection persistence and dismiss UX in `web/src/lib/editor/NoteReader.svelte`.
+- [x] T177l [US12] Ensure selection persistence and dismiss UX in `web/src/lib/editor/NoteReader.svelte`.
   **Read:** `web/src/lib/editor/NoteReader.svelte` selection lifecycle and toolbar actions.
   **Do:**
   - Preserve the browser DOM selection or visual highlight indicator while the toolbar or composer is active.

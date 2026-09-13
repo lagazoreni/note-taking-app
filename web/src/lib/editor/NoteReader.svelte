@@ -43,6 +43,7 @@
 	let toolbarPosition: { top: number; left: number } | null = null;
 	let layerPlacement: 'above' | 'below' = 'below';
 	let mouseSelectionActive = false;
+	let preservedSelectionRange: Range | null = null;
 
 	const POSITION_MARGIN = 8;
 	const POSITION_GAP = 8;
@@ -63,6 +64,31 @@
 		const selection = window.getSelection();
 		if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
 		return selection.getRangeAt(0);
+	}
+
+	function preserveSelection(range: Range) {
+		try {
+			preservedSelectionRange =
+				typeof range.cloneRange === 'function' ? range.cloneRange() : range;
+		} catch {
+			// Test doubles and a few older embedded browsers may not expose cloneRange.
+			// Keep the live range as a best-effort visual selection fallback.
+			preservedSelectionRange = range;
+		}
+	}
+
+	function restorePreservedSelection() {
+		if (!preservedSelectionRange || typeof window === 'undefined') return;
+		const selection = window.getSelection();
+		if (!selection) return;
+		try {
+			selection.removeAllRanges();
+			selection.addRange(preservedSelectionRange);
+		} catch {
+			// A range can become detached when the note is rerendered. The captured
+			// passage and anchored action layer still provide the visual fallback.
+			preservedSelectionRange = null;
+		}
 	}
 
 	function isRangeInsideReader(range: Range): boolean {
@@ -141,26 +167,53 @@
 	}
 
 	function updateSelectionPosition(): boolean {
-		if (composerOpen || pickerOpen || mouseSelectionActive) return false;
+		if (mouseSelectionActive) return false;
+		if (composerOpen || pickerOpen) {
+			// Focusing a popover control can collapse the browser selection. Restore
+			// the saved range while the composer or picker is active so the passage
+			// remains visibly associated with the action being edited. Do not replace
+			// an already-preserved selection on every selectionchange event.
+			const selection = window.getSelection();
+			if (
+				!selection ||
+				selection.rangeCount === 0 ||
+				selection.isCollapsed ||
+				!selection.toString().trim()
+			) {
+				restorePreservedSelection();
+			}
+			return false;
+		}
 		const range = selectionRange();
 		if (range && !isRangeInsideReader(range)) return false;
 		const text = selectedText();
 		if (!text) {
 			// A click inside the reader can collapse the browser selection. Keep the
 			// action layer anchored until the user explicitly dismisses it or makes
-			// another non-empty selection.
-			if (showToolbar && selectedPassage) return true;
+			// another non-empty selection, and restore the native selection if needed.
+			if (showToolbar && selectedPassage) {
+				restorePreservedSelection();
+				return true;
+			}
 			clearSelection();
 			return false;
 		}
 
 		const rect = selectionRect();
 		if (!rect) {
-			if (showToolbar && selectedPassage) return true;
+			if (showToolbar && selectedPassage) {
+				restorePreservedSelection();
+				return true;
+			}
 			clearSelection();
 			return false;
 		}
 
+		if (!range) {
+			clearSelection();
+			return false;
+		}
+		preserveSelection(range);
 		selectedPassage = text;
 		toolbarPosition = calculateToolbarPosition(rect);
 		showToolbar = true;
@@ -168,9 +221,19 @@
 	}
 
 	function clearSelection() {
+		// Clear component state first. Removing a native range can synchronously
+		// emit selectionchange; that event must not restore the range being dismissed.
+		preservedSelectionRange = null;
 		showToolbar = false;
 		selectedPassage = '';
 		toolbarPosition = null;
+
+		if (typeof window === 'undefined') return;
+		const selection = window.getSelection();
+		if (selection && selection.rangeCount > 0) {
+			const range = selection.getRangeAt(0);
+			if (isRangeInsideReader(range)) selection.removeAllRanges();
+		}
 	}
 
 	function cancelComposer() {
@@ -289,6 +352,7 @@
 		composerError = '';
 		composerOpen = true;
 		showToolbar = false;
+		restorePreservedSelection();
 	}
 
 	function openLinkPicker() {
@@ -296,6 +360,7 @@
 		pickerError = '';
 		pickerOpen = true;
 		showToolbar = false;
+		restorePreservedSelection();
 	}
 
 	async function selectExisting(question: Question) {
@@ -321,8 +386,17 @@
 		// finalizes the selection once the drag ends.
 		if (mouseSelectionActive) return;
 		const target = event.target as Node | null;
-		if (actionLayer && target && actionLayer.contains(target)) return;
-		if (readerElement && target && readerElement.contains(target)) return;
+		if (actionLayer && target && actionLayer.contains(target)) {
+			restorePreservedSelection();
+			return;
+		}
+		if (readerElement && target && readerElement.contains(target)) {
+			// Reader clicks are not dismissals: they may be a nearby highlight or
+			// the start of a new selection. Keep the current action anchored and
+			// restore the native selection if the click collapsed it.
+			restorePreservedSelection();
+			return;
+		}
 
 		// The action that opens the composer removes the toolbar and adds the composer
 		// during the same click. By the time the window click handler runs, the
@@ -361,10 +435,12 @@
 	function onWindowKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			if (composerOpen) {
+				event.preventDefault();
 				if (!composerSaving) cancelComposer();
 				return;
 			}
 			if (pickerOpen) {
+				event.preventDefault();
 				if (!pickerSaving) cancelPicker();
 				return;
 			}
@@ -407,7 +483,7 @@
 			}
 			composerOpen = false;
 			composerText = '';
-			selectedPassage = '';
+			clearSelection();
 		} catch (cause) {
 			composerError = cause instanceof Error ? cause.message : 'Could not save highlight';
 		} finally {
