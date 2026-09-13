@@ -495,7 +495,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 **Implementation for Toolbar Occlusion & Persistence**:
 
-- [ ] T177j [US12] Prevent mid-drag toolbar popup and premature clearing in `web/src/lib/editor/NoteReader.svelte`.
+- [x] T177j [US12] Prevent mid-drag toolbar popup and premature clearing in `web/src/lib/editor/NoteReader.svelte`.
   **Read:** `web/src/lib/editor/NoteReader.svelte` (`updateSelectionPosition`, `onSelectionChange`, `onMouseUp`, `dismissFromOutside`).
   **Do:**
   - Track pointer selection drag state (e.g., `isSelecting` flag set on reader `mousedown` and cleared on `mouseup`).

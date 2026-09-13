@@ -192,6 +192,10 @@
 	}
 
 	function onSelectionChange() {
+		// Browsers can emit several selectionchange events while the pointer is
+		// still dragging. Wait for mouseup so the toolbar cannot flash over the
+		// passage or replace a stable action layer with an intermediate range.
+		if (mouseSelectionActive) return;
 		updateSelectionPosition();
 	}
 
@@ -296,6 +300,10 @@
 
 	function dismissFromOutside(event: MouseEvent) {
 		if (!showToolbar && !composerOpen && !pickerOpen) return;
+		// Do not treat pointer movement outside the reader during an active
+		// selection as an outside-click dismissal. The window mouseup handler
+		// finalizes the selection once the drag ends.
+		if (mouseSelectionActive) return;
 		const target = event.target as Node | null;
 		if (actionLayer && target && actionLayer.contains(target)) return;
 		if (readerElement && target && readerElement.contains(target)) return;
