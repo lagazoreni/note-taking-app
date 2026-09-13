@@ -42,6 +42,7 @@
 	let readerElement: HTMLDivElement | null = null;
 	let toolbarPosition: { top: number; left: number } | null = null;
 	let layerPlacement: 'above' | 'below' = 'below';
+	let mouseSelectionActive = false;
 
 	const POSITION_MARGIN = 8;
 	const POSITION_GAP = 8;
@@ -124,17 +125,22 @@
 	}
 
 	function updateSelectionPosition(): boolean {
-		if (composerOpen || pickerOpen) return false;
+		if (composerOpen || pickerOpen || mouseSelectionActive) return false;
 		const range = selectionRange();
 		if (range && !isRangeInsideReader(range)) return false;
 		const text = selectedText();
 		if (!text) {
+			// A click inside the reader can collapse the browser selection. Keep the
+			// action layer anchored until the user explicitly dismisses it or makes
+			// another non-empty selection.
+			if (showToolbar && selectedPassage) return true;
 			clearSelection();
 			return false;
 		}
 
 		const rect = selectionRect();
 		if (!rect) {
+			if (showToolbar && selectedPassage) return true;
 			clearSelection();
 			return false;
 		}
@@ -166,7 +172,18 @@
 		clearSelection();
 	}
 
+	function onReaderMouseDown(event: MouseEvent) {
+		if (event.button === 0) mouseSelectionActive = true;
+	}
+
 	function onMouseUp() {
+		mouseSelectionActive = false;
+		updateSelectionPosition();
+	}
+
+	function onWindowMouseUp() {
+		if (!mouseSelectionActive) return;
+		mouseSelectionActive = false;
 		updateSelectionPosition();
 	}
 
@@ -281,6 +298,7 @@
 		if (!showToolbar && !composerOpen && !pickerOpen) return;
 		const target = event.target as Node | null;
 		if (actionLayer && target && actionLayer.contains(target)) return;
+		if (readerElement && target && readerElement.contains(target)) return;
 
 		// The action that opens the composer removes the toolbar and adds the composer
 		// during the same click. By the time the window click handler runs, the
@@ -377,6 +395,7 @@
 <svelte:window
 	onclick={onWindowClick}
 	onmousedown={onWindowMouseDown}
+	onmouseup={onWindowMouseUp}
 	onkeydown={onWindowKeydown}
 />
 
@@ -385,6 +404,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -- Text selection and highlight clicks are intentionally handled on the reading surface. -->
 	<article
 		aria-label="Reading note"
+		onmousedown={onReaderMouseDown}
 		onmouseup={onMouseUp}
 		oncontextmenu={onContextMenu}
 		onclick={onClick}

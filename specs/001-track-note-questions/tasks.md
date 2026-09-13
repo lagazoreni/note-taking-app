@@ -481,7 +481,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 **Tests for Toolbar Occlusion & Persistence (write first; they must fail)**:
 
-- [ ] T177h [P] [US12] Add unit & component tests for toolbar non-occlusion and persistence in `web/tests/component/NoteReader.test.ts`:
+- [x] T177h [P] [US12] Add unit & component tests for toolbar non-occlusion and persistence in `web/tests/component/NoteReader.test.ts`:
   - Verify toolbar is positioned outside the active line/selection boundary (preferring above the selection start or below selection end with clearance, rather than overlaying the highlighted text).
   - Verify toolbar does not trigger while mouse drag selection is still active (`mousedown` without `mouseup`), avoiding obstructing text mid-selection.
   - Verify toolbar and selection state persist when clicking inside the reader or moving focus until explicitly dismissed (via Escape, Cancel button, or starting a new distinct selection).

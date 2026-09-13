@@ -338,4 +338,115 @@ describe('NoteReader', () => {
 		expect(screen.queryByLabelText('Annotation')).not.toBeInTheDocument();
 		expect(onCapture).not.toHaveBeenCalled();
 	});
+
+	it('keeps the toolbar outside the selected line with clearance', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		const bounds = {
+			top: 430,
+			left: 80,
+			right: 280,
+			bottom: 455,
+			width: 200,
+			height: 25
+		};
+		const originalHeight = window.innerHeight;
+		Object.defineProperty(window, 'innerHeight', { configurable: true, value: 480 });
+
+		try {
+			mockSelection('Select this passage.', bounds);
+			await fireEvent.mouseUp(article);
+
+			const toolbar = screen.getByRole('toolbar', { name: 'Selection actions' });
+			const toolbarTop = Number.parseFloat(toolbar.style.top);
+			const estimatedToolbarHeight = 96;
+			if (toolbar.dataset.placement === 'above') {
+				expect(toolbarTop + estimatedToolbarHeight).toBeLessThanOrEqual(bounds.top - 8);
+			} else {
+				expect(toolbarTop).toBeGreaterThanOrEqual(bounds.bottom + 8);
+			}
+		} finally {
+			Object.defineProperty(window, 'innerHeight', {
+				configurable: true,
+				value: originalHeight
+			});
+		}
+	});
+
+	it('waits for mouseup before showing a toolbar during drag selection', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		mockSelection('Select this passage.');
+
+		await fireEvent.mouseDown(article);
+		document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+		expect(screen.queryByRole('toolbar', { name: 'Selection actions' })).not.toBeInTheDocument();
+
+		await fireEvent.mouseUp(article);
+		expect(screen.getByRole('toolbar', { name: 'Selection actions' })).toBeInTheDocument();
+	});
+
+	it('keeps selection actions while clicking or moving focus inside the reader', async () => {
+		render(NoteReader, { markdown: 'First passage. Second passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		mockSelection('First passage.', {
+			top: 120,
+			left: 80,
+			right: 190,
+			bottom: 145,
+			width: 110,
+			height: 25
+		});
+		await fireEvent.mouseUp(article);
+
+		await fireEvent.focus(article);
+		await fireEvent.click(article);
+		expect(screen.getByRole('toolbar', { name: 'Selection actions' })).toBeInTheDocument();
+
+		mockSelection('Second passage.', {
+			top: 180,
+			left: 80,
+			right: 210,
+			bottom: 205,
+			width: 130,
+			height: 25
+		});
+		await fireEvent.mouseDown(article);
+		document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+		await fireEvent.mouseUp(article);
+		await fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+
+		expect(screen.getByRole('blockquote')).toHaveTextContent('Second passage.');
+	});
+
+	it('places a top-edge selection below the passage without clipping it', async () => {
+		const originalWidth = window.innerWidth;
+		const originalHeight = window.innerHeight;
+		Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 });
+		Object.defineProperty(window, 'innerHeight', { configurable: true, value: 240 });
+
+		try {
+			render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+			const article = screen.getByRole('article', { name: 'Reading note' });
+			const bounds = {
+				top: 2,
+				left: 24,
+				right: 210,
+				bottom: 24,
+				width: 186,
+				height: 22
+			};
+			mockSelection('Select this passage.', bounds);
+			await fireEvent.mouseUp(article);
+
+			const toolbar = screen.getByRole('toolbar', { name: 'Selection actions' });
+			const toolbarTop = Number.parseFloat(toolbar.style.top);
+			expect(toolbar.dataset.placement).toBe('below');
+			expect(toolbarTop).toBeGreaterThanOrEqual(bounds.bottom + 8);
+			expect(toolbarTop + 96).toBeLessThanOrEqual(window.innerHeight - 8);
+		} finally {
+			Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth });
+			Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalHeight });
+		}
+	});
 });
