@@ -503,7 +503,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - Refine `dismissFromOutside` and selection change listeners so existing active selection and toolbar do not prematurely collapse on minor mouse jitter or non-dismissing clicks.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T177k [US12] Position floating toolbar with non-occluding clearance in `web/src/lib/editor/NoteReader.svelte`.
+- [x] T177k [US12] Position floating toolbar with non-occluding clearance in `web/src/lib/editor/NoteReader.svelte`.
   **Read:** `web/src/lib/editor/NoteReader.svelte` `calculateToolbarPosition` and positioning styles.
   **Do:**
   - Update `calculateToolbarPosition` to prefer placing the toolbar above the selection range (`rect.top - layerHeight - clearanceGap`) when space permits, so the selected passage remains unobstructed.

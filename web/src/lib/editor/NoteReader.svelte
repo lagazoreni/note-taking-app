@@ -100,21 +100,37 @@
 		const maxLeft = Math.max(minLeft, viewportWidth - layerWidth - minLeft);
 		const minTop = Math.min(POSITION_MARGIN, viewportHeight);
 		const maxTop = Math.max(minTop, viewportHeight - layerHeight - minTop);
+		const aboveSelection = rect.top - layerHeight - POSITION_GAP;
+		const belowSelection = rect.bottom + POSITION_GAP;
 
-		let top = rect.bottom + POSITION_GAP;
-		layerPlacement = 'below';
-		if (top > maxTop) {
-			const aboveSelection = rect.top - layerHeight - POSITION_GAP;
-			if (aboveSelection >= minTop) {
+		// Prefer the space above the selection so the action layer does not cover
+		// the line the user just selected. Near the top edge, use the space below
+		// it instead; both candidates are clamped as a final small-viewport guard.
+		let top: number;
+		if (aboveSelection >= minTop) {
+			top = aboveSelection;
+			layerPlacement = 'above';
+		} else if (belowSelection <= maxTop) {
+			top = belowSelection;
+			layerPlacement = 'below';
+		} else {
+			// If neither side can fit the estimated layer, use the side with more
+			// available space before clamping to the viewport.
+			const spaceAbove = rect.top - minTop;
+			const spaceBelow = maxTop - rect.bottom;
+			if (spaceAbove >= spaceBelow) {
 				top = aboveSelection;
 				layerPlacement = 'above';
 			} else {
-				top = maxTop;
+				top = belowSelection;
+				layerPlacement = 'below';
 			}
 		}
 
 		return {
 			top: Math.round(clamp(top, minTop, maxTop)),
+			// Keep the toolbar aligned with the selection start while ensuring its
+			// estimated width stays inside the viewport on narrow screens.
 			left: Math.round(clamp(rect.left, minLeft, maxLeft))
 		};
 	}

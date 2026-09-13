@@ -98,7 +98,11 @@ describe('NoteReader', () => {
 		expectFloating(toolbar);
 		const top = Number.parseFloat(toolbar.style.top);
 		const left = Number.parseFloat(toolbar.style.left);
-		expect(Math.abs(top - 208)).toBeLessThanOrEqual(48);
+		if (toolbar.dataset.placement === 'above') {
+			expect(top).toBeLessThanOrEqual(180 - 8);
+		} else {
+			expect(top).toBeGreaterThanOrEqual(208 + 8);
+		}
 		expect(Math.abs(left - 96)).toBeLessThanOrEqual(48);
 	});
 
