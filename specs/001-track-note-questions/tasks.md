@@ -424,11 +424,11 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ### Tests for Phase 20a (write first; they must fail)
 
-- [ ] T177a [P] [US12] Extend `web/tests/component/NoteReader.test.ts`:
+- [x] T177a [P] [US12] Extend `web/tests/component/NoteReader.test.ts`:
   - When text is selected in the reader, the toolbar element receives floating/positioned styling (e.g., inline coordinates or positioning classes based on selection bounds) rather than rendering statically at the bottom of the article.
   - When the composer is opened from a selection, the composer container retains the contextual positioning adjacent to the selection.
   - Viewport boundary safety: clamped coordinates keep toolbar and composer inside visible container bounds.
-- [ ] T177b [P] [US12] Extend `web/tests/component/AnnotationCard.test.ts`:
+- [x] T177b [P] [US12] Extend `web/tests/component/AnnotationCard.test.ts`:
   - Card supports positioning anchored near the target highlight element or range when coordinates or target rect are provided, while retaining its responsive modal/fixed overlay behavior when positioned near edges or on mobile screens.
 - [ ] T177c [P] [US12] Add Playwright test `tests/e2e/us12-floating-selection-ux.spec.ts`:
   - Create a long note (multiple paragraphs requiring scrolling).

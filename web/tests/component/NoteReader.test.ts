@@ -22,15 +22,48 @@ const question: Question = {
 	kind: 'question'
 };
 
-function mockSelection(text: string) {
+type SelectionBounds = {
+	top: number;
+	left: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+};
+
+function mockSelection(
+	text: string,
+	bounds: SelectionBounds = { top: 120, left: 80, right: 260, bottom: 145, width: 180, height: 25 }
+) {
 	vi.spyOn(window, 'getSelection').mockReturnValue({
 		toString: () => text,
 		rangeCount: text ? 1 : 0,
 		isCollapsed: !text,
 		removeAllRanges: () => undefined,
 		addRange: () => undefined,
-		getRangeAt: () => ({ collapse: () => undefined })
+		getRangeAt: () => ({
+			collapse: () => undefined,
+			getBoundingClientRect: () => bounds
+		})
 	} as unknown as Selection);
+}
+
+function expectFloating(element: HTMLElement) {
+	expect(['absolute', 'fixed']).toContain(element.style.position);
+	expect(element.style.top).not.toBe('');
+	expect(element.style.left).not.toBe('');
+}
+
+function expectInsideViewport(element: HTMLElement) {
+	expectFloating(element);
+	const top = Number.parseFloat(element.style.top);
+	const left = Number.parseFloat(element.style.left);
+	expect(Number.isFinite(top)).toBe(true);
+	expect(Number.isFinite(left)).toBe(true);
+	expect(top).toBeGreaterThanOrEqual(0);
+	expect(left).toBeGreaterThanOrEqual(0);
+	expect(top).toBeLessThanOrEqual(window.innerHeight);
+	expect(left).toBeLessThanOrEqual(window.innerWidth);
 }
 
 describe('NoteReader', () => {
@@ -45,6 +78,85 @@ describe('NoteReader', () => {
 		expect(screen.getByRole('button', { name: 'Ask a question' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Add annotation' })).toBeInTheDocument();
 		expect(screen.getByText('Q ask · A annotate · L link · Esc cancel')).toBeInTheDocument();
+	});
+
+	it('positions the selection toolbar next to the selected passage', async () => {
+		render(NoteReader, { markdown: 'The mitochondria is the powerhouse.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		mockSelection('The mitochondria is the powerhouse.', {
+			top: 180,
+			left: 96,
+			right: 300,
+			bottom: 208,
+			width: 204,
+			height: 28
+		});
+
+		await fireEvent.mouseUp(article);
+
+		const toolbar = screen.getByRole('toolbar', { name: 'Selection actions' });
+		expectFloating(toolbar);
+		const top = Number.parseFloat(toolbar.style.top);
+		const left = Number.parseFloat(toolbar.style.left);
+		expect(Math.abs(top - 208)).toBeLessThanOrEqual(48);
+		expect(Math.abs(left - 96)).toBeLessThanOrEqual(48);
+	});
+
+	it('keeps the composer anchored to the selected passage', async () => {
+		render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		mockSelection('Select this passage.', {
+			top: 120,
+			left: 80,
+			right: 220,
+			bottom: 148,
+			width: 140,
+			height: 28
+		});
+
+		await fireEvent.mouseUp(article);
+		const toolbar = screen.getByRole('toolbar', { name: 'Selection actions' });
+		const toolbarTop = Number.parseFloat(toolbar.style.top);
+		const toolbarLeft = Number.parseFloat(toolbar.style.left);
+		await fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+
+		const composer = document.querySelector('.composer');
+		expect(composer).toBeInstanceOf(HTMLElement);
+		const composerElement = composer as HTMLElement;
+		expectFloating(composerElement);
+		expect(Number.parseFloat(composerElement.style.top)).toBeCloseTo(toolbarTop, 0);
+		expect(Number.parseFloat(composerElement.style.left)).toBeCloseTo(toolbarLeft, 0);
+	});
+
+	it('clamps the toolbar and composer inside the viewport near its edges', async () => {
+		const originalWidth = window.innerWidth;
+		const originalHeight = window.innerHeight;
+		Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 });
+		Object.defineProperty(window, 'innerHeight', { configurable: true, value: 240 });
+
+		try {
+			render(NoteReader, { markdown: 'Select this passage.', questions: [] });
+			const article = screen.getByRole('article', { name: 'Reading note' });
+			mockSelection('Select this passage.', {
+				top: 220,
+				left: 300,
+				right: 319,
+				bottom: 239,
+				width: 19,
+				height: 19
+			});
+
+			await fireEvent.mouseUp(article);
+			const toolbar = screen.getByRole('toolbar', { name: 'Selection actions' });
+			expectInsideViewport(toolbar);
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Ask a question' }));
+			const composer = document.querySelector('.composer') as HTMLElement;
+			expectInsideViewport(composer);
+		} finally {
+			Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth });
+			Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalHeight });
+		}
 	});
 
 	it('opens a card when a highlight is clicked', async () => {
