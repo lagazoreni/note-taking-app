@@ -430,7 +430,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - Viewport boundary safety: clamped coordinates keep toolbar and composer inside visible container bounds.
 - [x] T177b [P] [US12] Extend `web/tests/component/AnnotationCard.test.ts`:
   - Card supports positioning anchored near the target highlight element or range when coordinates or target rect are provided, while retaining its responsive modal/fixed overlay behavior when positioned near edges or on mobile screens.
-- [ ] T177c [P] [US12] Add Playwright test `tests/e2e/us12-floating-selection-ux.spec.ts`:
+- [x] T177c [P] [US12] Add Playwright test `tests/e2e/us12-floating-selection-ux.spec.ts`:
   - Create a long note (multiple paragraphs requiring scrolling).
   - Select text near the top of the viewport; verify the selection toolbar is immediately visible within the viewport without scrolling down.
   - Click "Ask a question"; verify the composer is visible within the viewport next to the selection.
