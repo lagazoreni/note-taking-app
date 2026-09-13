@@ -473,6 +473,51 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   **Verify:** `npx playwright test tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/accessibility-notes.spec.ts`
   **Result:** Chromium passed all five tests serially (`--project=chromium --workers=1`). Firefox and WebKit were unavailable because their Playwright browser executables are not installed in this environment.
 
+### UX Remediation: Floating Toolbar Occlusion and Selection Persistence
+
+**Problem**:
+1. When selecting text to highlight, the floating toolbar renders immediately over/adjacent to the selected text, obstructing reading and further text selection while dragging or highlighting.
+2. The toolbar does not persist predictably: live `selectionchange` triggers mid-drag, clicks, or pointer micro-movements prematurely dismiss or clear selection state before user action.
+
+**Tests for Toolbar Occlusion & Persistence (write first; they must fail)**:
+
+- [ ] T177h [P] [US12] Add unit & component tests for toolbar non-occlusion and persistence in `web/tests/component/NoteReader.test.ts`:
+  - Verify toolbar is positioned outside the active line/selection boundary (preferring above the selection start or below selection end with clearance, rather than overlaying the highlighted text).
+  - Verify toolbar does not trigger while mouse drag selection is still active (`mousedown` without `mouseup`), avoiding obstructing text mid-selection.
+  - Verify toolbar and selection state persist when clicking inside the reader or moving focus until explicitly dismissed (via Escape, Cancel button, or starting a new distinct selection).
+  - Verify viewport boundary handling: when selection is at the top of the viewport, toolbar flips below the selection with safe clearance without clipping or obscuring the selected line.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T177i [P] [US12] Add Playwright test in `tests/e2e/us12-floating-selection-ux.spec.ts`:
+  - Select a multi-line passage and verify the floating toolbar bounding rect does not overlap the bounding rect of the selected text range.
+  - Verify the toolbar persists after pointer release without flickering or dismissing prematurely until an explicit action or dismiss occurs.
+  **Verify:** `npx playwright test tests/e2e/us12-floating-selection-ux.spec.ts`
+
+**Implementation for Toolbar Occlusion & Persistence**:
+
+- [ ] T177j [US12] Prevent mid-drag toolbar popup and premature clearing in `web/src/lib/editor/NoteReader.svelte`.
+  **Read:** `web/src/lib/editor/NoteReader.svelte` (`updateSelectionPosition`, `onSelectionChange`, `onMouseUp`, `dismissFromOutside`).
+  **Do:**
+  - Track pointer selection drag state (e.g., `isSelecting` flag set on reader `mousedown` and cleared on `mouseup`).
+  - Suppress `onSelectionChange` toolbar updates while pointer drag is active so the toolbar does not flash or obstruct while the user is actively dragging.
+  - Refine `dismissFromOutside` and selection change listeners so existing active selection and toolbar do not prematurely collapse on minor mouse jitter or non-dismissing clicks.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T177k [US12] Position floating toolbar with non-occluding clearance in `web/src/lib/editor/NoteReader.svelte`.
+  **Read:** `web/src/lib/editor/NoteReader.svelte` `calculateToolbarPosition` and positioning styles.
+  **Do:**
+  - Update `calculateToolbarPosition` to prefer placing the toolbar above the selection range (`rect.top - layerHeight - clearanceGap`) when space permits, so the selected passage remains unobstructed.
+  - If placing below (when near top of viewport), anchor below `rect.bottom + clearanceGap` to prevent overlapping the text lines being read.
+  - Horizontally align toolbar relative to selection start or center, clamped within reader/viewport padding so it doesn't overlap text awkwardly or clip viewport edges.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T177l [US12] Ensure selection persistence and dismiss UX in `web/src/lib/editor/NoteReader.svelte`.
+  **Read:** `web/src/lib/editor/NoteReader.svelte` selection lifecycle and toolbar actions.
+  **Do:**
+  - Preserve the browser DOM selection or visual highlight indicator while the toolbar or composer is active.
+  - Allow explicit dismissal via Escape key, "Cancel" button, or clicking outside without accidental dismissals when interacting with nearby reader controls.
+  **Verify:** `npx playwright test tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/accessibility-notes.spec.ts`
+
 **Landmines:**
 - Selection coordinates can collapse or return 0 when clicking outside; verify `range.getBoundingClientRect()` is valid before updating position.
 - Do not let fixed or absolute popovers cause horizontal scrollbars or overflow on mobile devices.
