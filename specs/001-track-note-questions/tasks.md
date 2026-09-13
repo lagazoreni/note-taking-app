@@ -449,7 +449,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - Clamp coordinates so the toolbar never renders off-screen or outside the reader container.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T177e [US12] Float toolbar and composer next to selection in `web/src/lib/editor/NoteReader.svelte`.
+- [x] T177e [US12] Float toolbar and composer next to selection in `web/src/lib/editor/NoteReader.svelte`.
   **Read:** `web/src/lib/editor/NoteReader.svelte` markup and `.toolbar`, `.composer`, `.picker-layer` styles.
   **Do:**
   - Apply contextual positioning (absolute or fixed anchored to `toolbarPosition`) to `.toolbar`, `.composer`, and `.picker-layer`.

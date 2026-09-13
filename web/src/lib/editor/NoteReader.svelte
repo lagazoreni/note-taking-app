@@ -32,6 +32,7 @@
 	let actionLayer: HTMLDivElement | null = null;
 	let readerElement: HTMLDivElement | null = null;
 	let toolbarPosition: { top: number; left: number } | null = null;
+	let layerPlacement: 'above' | 'below' = 'below';
 
 	const POSITION_MARGIN = 8;
 	const POSITION_GAP = 8;
@@ -91,9 +92,15 @@
 		const maxTop = Math.max(minTop, viewportHeight - layerHeight - minTop);
 
 		let top = rect.bottom + POSITION_GAP;
+		layerPlacement = 'below';
 		if (top > maxTop) {
 			const aboveSelection = rect.top - layerHeight - POSITION_GAP;
-			top = aboveSelection >= minTop ? aboveSelection : maxTop;
+			if (aboveSelection >= minTop) {
+				top = aboveSelection;
+				layerPlacement = 'above';
+			} else {
+				top = maxTop;
+			}
 		}
 
 		return {
@@ -362,6 +369,7 @@
 			class="toolbar"
 			role="toolbar"
 			aria-label="Selection actions"
+			data-placement={layerPlacement}
 			style={layerStyle()}
 			bind:this={actionLayer}
 		>
@@ -375,7 +383,12 @@
 		</div>
 	{/if}
 	{#if pickerOpen}
-		<div class="picker-layer" style={layerStyle()} bind:this={actionLayer}>
+		<div
+			class="picker-layer"
+			data-placement={layerPlacement}
+			style={layerStyle()}
+			bind:this={actionLayer}
+		>
 			<QuestionPicker questions={linkableQuestions} onSelect={selectExisting} />
 			{#if pickerError}<div class="error" role="alert">{pickerError}</div>{/if}
 			<button type="button" class="secondary" onclick={cancelPicker} disabled={pickerSaving}>
@@ -384,7 +397,12 @@
 		</div>
 	{/if}
 	{#if composerOpen}
-		<div class="composer" style={layerStyle()} bind:this={actionLayer}>
+		<div
+			class="composer"
+			data-placement={layerPlacement}
+			style={layerStyle()}
+			bind:this={actionLayer}
+		>
 			<blockquote>{selectedPassage}</blockquote>
 			{#if composerKind === 'question'}
 				<label for="reader-question-text">Question text</label>
@@ -472,42 +490,94 @@
 	.toolbar,
 	.composer,
 	.picker-layer {
+		position: fixed;
+		z-index: 30;
+		box-sizing: border-box;
+		max-width: calc(100vw - 1rem);
+		background: #f8fafc;
+		border: 1px solid #cbd5e1;
+		border-radius: 0.7rem;
+		padding: 0.75rem;
+		box-shadow: 0 12px 30px rgb(15 23 42 / 18%), 0 2px 8px rgb(15 23 42 / 10%);
+		isolation: isolate;
+		will-change: top, left;
+	}
+	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
-		align-items: end;
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
-		border-radius: 0.5rem;
-		padding: 0.75rem;
+		align-items: center;
+		width: max-content;
 	}
 	.composer,
 	.picker-layer {
 		display: grid;
+		gap: 0.65rem;
+		width: min(22.5rem, calc(100vw - 1rem));
+	}
+	.toolbar::before,
+	.composer::before,
+	.picker-layer::before {
+		content: '';
+		position: absolute;
+		z-index: 0;
+		width: 0.75rem;
+		height: 0.75rem;
+		background: #f8fafc;
+		border: 1px solid #cbd5e1;
+		transform: rotate(45deg);
+		pointer-events: none;
+	}
+	.toolbar[data-placement='below']::before,
+	.composer[data-placement='below']::before,
+	.picker-layer[data-placement='below']::before {
+		top: -0.4rem;
+		left: 1.35rem;
+		border-right: 0;
+		border-bottom: 0;
+	}
+	.toolbar[data-placement='above']::before,
+	.composer[data-placement='above']::before,
+	.picker-layer[data-placement='above']::before {
+		bottom: -0.4rem;
+		left: 1.35rem;
+		border-top: 0;
+		border-left: 0;
 	}
 	.composer blockquote {
+		max-height: 7rem;
 		margin: 0;
 		padding: 0.5rem 0.65rem;
 		background: #fef3c7;
 		color: #78350f;
+		overflow: auto;
 	}
 	.composer-actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
+	.keyboard-hint {
+		color: #475569;
+		font-size: 0.75rem;
+		white-space: nowrap;
+	}
 	label {
 		font-weight: 650;
 	}
 	input,
 	textarea {
+		box-sizing: border-box;
 		width: 100%;
+		min-height: 44px;
 		padding: 0.65rem;
 		border: 1px solid #cbd5e1;
 		border-radius: 0.4rem;
 	}
 	button {
 		width: max-content;
+		min-width: 44px;
+		min-height: 44px;
 		border: 0;
 		background: #2563eb;
 		color: #fff;
@@ -522,10 +592,56 @@
 	button:disabled {
 		opacity: 0.55;
 	}
+	.picker-layer :global(button) {
+		min-width: 44px;
+		min-height: 44px;
+	}
+	.picker-layer :global(input) {
+		box-sizing: border-box;
+		min-height: 44px;
+	}
 	.error {
 		padding: 0.6rem;
 		background: #fef2f2;
 		color: #991b1b;
 		border-radius: 0.4rem;
+	}
+	@media (max-width: 640px) {
+		.toolbar {
+			left: 0.5rem !important;
+			width: calc(100vw - 1rem);
+			max-width: calc(100vw - 1rem);
+			padding: 0.5rem;
+			align-items: stretch;
+		}
+		.toolbar button {
+			flex: 1 1 calc(50% - 0.5rem);
+		}
+		.keyboard-hint {
+			flex-basis: 100%;
+			order: -1;
+			white-space: normal;
+		}
+		.toolbar[data-placement='above'],
+		.composer[data-placement='above'],
+		.picker-layer[data-placement='above'] {
+			top: auto !important;
+			bottom: 0.5rem;
+		}
+		.composer,
+		.picker-layer {
+			left: 0.5rem !important;
+			width: calc(100vw - 1rem);
+			max-width: calc(100vw - 1rem);
+			max-height: calc(100vh - 1rem);
+			max-height: calc(100dvh - 1rem);
+			overflow-y: auto;
+			overscroll-behavior: contain;
+		}
+		.toolbar::before,
+		.composer::before,
+		.picker-layer::before {
+			display: none;
+		}
 	}
 </style>
