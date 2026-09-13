@@ -488,7 +488,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - Verify viewport boundary handling: when selection is at the top of the viewport, toolbar flips below the selection with safe clearance without clipping or obscuring the selected line.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T177i [P] [US12] Add Playwright test in `tests/e2e/us12-floating-selection-ux.spec.ts`:
+- [x] T177i [P] [US12] Add Playwright test in `tests/e2e/us12-floating-selection-ux.spec.ts`:
   - Select a multi-line passage and verify the floating toolbar bounding rect does not overlap the bounding rect of the selected text range.
   - Verify the toolbar persists after pointer release without flickering or dismissing prematurely until an explicit action or dismiss occurs.
   **Verify:** `npx playwright test tests/e2e/us12-floating-selection-ux.spec.ts`

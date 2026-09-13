@@ -85,6 +85,62 @@ async function selectReaderText(page: Page, text: string): Promise<Box> {
 	}, text);
 }
 
+async function selectReaderRange(
+	page: Page,
+	startText: string,
+	endText: string
+): Promise<{ box: Box; lineCount: number }> {
+	const reader = page.getByRole('article', { name: 'Reading note' });
+	await expect(reader).toBeVisible();
+	return reader.evaluate(
+		(element, value) => {
+			const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+			let startNode: Node | null = null;
+			let endNode: Node | null = null;
+			let startOffset = -1;
+			let endOffset = -1;
+			let node: Node | null;
+
+			while ((node = walker.nextNode())) {
+				const text = node.textContent ?? '';
+				if (!startNode) {
+					const startIndex = text.indexOf(value.start);
+					if (startIndex >= 0) {
+						startNode = node;
+						startOffset = startIndex;
+					}
+				}
+				if (startNode && !endNode) {
+					const endIndex = text.indexOf(value.end);
+					if (endIndex >= 0) {
+						endNode = node;
+						endOffset = endIndex + value.end.length;
+					}
+				}
+			}
+
+			if (!startNode || !endNode || startOffset < 0 || endOffset < 0) {
+				throw new Error(`Could not select range: ${value.start} … ${value.end}`);
+			}
+
+			const range = document.createRange();
+			range.setStart(startNode, startOffset);
+			range.setEnd(endNode, endOffset);
+			const selection = window.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+			const rect = range.getBoundingClientRect();
+			const lineCount = range.getClientRects().length;
+			element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+			return {
+				box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+				lineCount
+			};
+		},
+		{ start: startText, end: endText }
+	);
+}
+
 async function runFloatingSelectionFlow(page: Page, suffix: string) {
 	await externalNetworkBlock(page);
 	const passage = 'This passage near the top should open the floating actions.';
@@ -150,6 +206,49 @@ async function runFloatingSelectionFlow(page: Page, suffix: string) {
 }
 
 test.describe('floating selection UX', () => {
+	test('keeps the floating toolbar outside a multi-line selection', async ({ page }, info) => {
+		await externalNetworkBlock(page);
+		const suffix = `non-overlap-${info.project.name}-${Date.now()}`;
+		const startText = 'The multi-line selection starts here.';
+		const endText = 'The multi-line selection ends here.';
+		const body = [
+			`${startText} The first selected line has enough context to make the selection boundary clear.`,
+			'The selection continues across this separate rendered paragraph before reaching its end.',
+			`${endText} Text after the selection confirms that the range has a distinct endpoint.`,
+			Array.from(
+				{ length: 12 },
+				(_, index) =>
+					`Filler paragraph ${index + 1}: the note continues below the selected passage so the reader remains a real reading surface.`
+			).join('\n\n')
+		].join('\n\n');
+
+		await createWorkspace(page, `Floating toolbar ${suffix}`);
+		await createNote(page, `Toolbar non-overlap ${suffix}`, body);
+		await page.evaluate(() => window.scrollTo(0, 0));
+
+		const selection = await selectReaderRange(page, startText, endText);
+		expect(selection.lineCount, 'the test selection must span multiple rendered lines').toBeGreaterThan(1);
+
+		const toolbar = page.getByRole('toolbar', { name: 'Selection actions' });
+		await expect(toolbar).toBeVisible();
+		const toolbarBox = await assertInViewport(page, toolbar, 'selection toolbar');
+		const selectedBox = selection.box;
+		const overlaps =
+			toolbarBox.x < selectedBox.x + selectedBox.width &&
+			toolbarBox.x + toolbarBox.width > selectedBox.x &&
+			toolbarBox.y < selectedBox.y + selectedBox.height &&
+			toolbarBox.y + toolbarBox.height > selectedBox.y;
+
+		expect(overlaps, 'the floating toolbar must not cover the selected passage').toBe(false);
+
+		// A pointer release and harmless pointer movement must not dismiss or relocate
+		// the toolbar before the user chooses an action or an explicit dismiss control.
+		await page.mouse.move(8, 8);
+		await page.waitForTimeout(150);
+		await expect(toolbar).toBeVisible();
+		expect(await assertInViewport(page, toolbar, 'persistent selection toolbar')).toEqual(toolbarBox);
+	});
+
 	test('keeps selection actions and the question card in context on desktop', async ({ page }, info) => {
 		await runFloatingSelectionFlow(page, `desktop-${info.project.name}-${Date.now()}`);
 	});
