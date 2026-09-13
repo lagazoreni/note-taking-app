@@ -400,6 +400,88 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ---
 
+## Phase 20a: In-context floating capture toolbar and mobile-friendly highlight positioning (UX gap remediation)
+
+**Purpose**: Address user experience feedback on long notes and mobile devices:
+1. When notes are long, the user currently has to scroll down past the note body just to see the selection toolbar and action buttons. The action controls must be easily accessible without keyboard shortcuts.
+2. The selection toolbar must automatically show up immediately adjacent to the highlighted/selected text (floating or anchored to the selection range) so mobile users and mouse users see the capture actions in their current viewport.
+3. The question/annotation composer and highlight card must not be stranded at the bottom of a long document below the article; they should appear in-context right next to or anchored beside the highlighted passage (with responsive fallback on small/mobile screens so they do not clip off-screen).
+
+**For a small model.** Read `PROJECT_MAP.md` once, this phase only, then only `web/src/lib/editor/NoteReader.svelte`, `web/src/lib/components/AnnotationCard.svelte`, and their test files. Implement **one task at a time**, run its verify command, and stop.
+
+**Independent Test**:
+1. Open a long note (several screens of text).
+2. Select text near the top or middle of the note without scrolling to the bottom. The selection toolbar ("Ask a question", "Add annotation", "Link existing question", "Cancel") automatically appears floating directly adjacent to (above or below) the highlighted passage in view.
+3. Tap or click "Ask a question" or "Add annotation". The composer opens adjacent to the highlighted selection (not appended at the bottom of the long article).
+4. Save the question. Click the newly created highlight. The question card/dialog opens next to the clicked highlight in view (or as a bottom sheet / centered sheet on mobile viewports), avoiding any need to scroll down to view or edit the card.
+5. On mobile/touch devices or narrow viewports, the floating toolbar and composer remain fully visible within the viewport (clamped to viewport boundaries) without horizontal overflow or off-screen clipping.
+
+**Do not**:
+- Change backend APIs, domain validation, SQLite schemas, or OpenAPI contracts.
+- Alter Markdown directives grammar (`{{question:uuid}}...{{/question}}`) or `findSelectionInMarkdown`.
+- Break existing Q/A/L/Escape keyboard shortcuts or tests.
+- Change `/notes/new` Title/Note labels or layout.
+
+### Tests for Phase 20a (write first; they must fail)
+
+- [ ] T177a [P] [US12] Extend `web/tests/component/NoteReader.test.ts`:
+  - When text is selected in the reader, the toolbar element receives floating/positioned styling (e.g., inline coordinates or positioning classes based on selection bounds) rather than rendering statically at the bottom of the article.
+  - When the composer is opened from a selection, the composer container retains the contextual positioning adjacent to the selection.
+  - Viewport boundary safety: clamped coordinates keep toolbar and composer inside visible container bounds.
+- [ ] T177b [P] [US12] Extend `web/tests/component/AnnotationCard.test.ts`:
+  - Card supports positioning anchored near the target highlight element or range when coordinates or target rect are provided, while retaining its responsive modal/fixed overlay behavior when positioned near edges or on mobile screens.
+- [ ] T177c [P] [US12] Add Playwright test `tests/e2e/us12-floating-selection-ux.spec.ts`:
+  - Create a long note (multiple paragraphs requiring scrolling).
+  - Select text near the top of the viewport; verify the selection toolbar is immediately visible within the viewport without scrolling down.
+  - Click "Ask a question"; verify the composer is visible within the viewport next to the selection.
+  - Create the question; scroll to a highlight; click it; verify the question card is visible in the viewport near the highlight.
+  - Test on mobile viewport preset (`viewport: { width: 375, height: 667 }`) to ensure touch-friendly access and no clipping.
+
+### Implementation for Phase 20a
+
+- [ ] T177d [US12] Implement selection range coordinate calculation in `web/src/lib/editor/NoteReader.svelte`.
+  **Read:** `web/src/lib/editor/NoteReader.svelte` selection handling (`onMouseUp`, `onContextMenu`, `selectedText`).
+  **Do:**
+  - In `onMouseUp` / `onContextMenu`, obtain `window.getSelection()?.getRangeAt(0)?.getBoundingClientRect()`.
+  - Calculate relative top and left coordinates relative to the reader container (or viewport-clamped fixed coordinates) for the selection.
+  - Store `toolbarPosition = { top: number, left: number }`.
+  - Add `selectionchange` / `touchend` listeners on the reader element so mobile touch highlights automatically capture the selection bounds and show the toolbar without requiring mouse events or right-click.
+  - Clamp coordinates so the toolbar never renders off-screen or outside the reader container.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T177e [US12] Float toolbar and composer next to selection in `web/src/lib/editor/NoteReader.svelte`.
+  **Read:** `web/src/lib/editor/NoteReader.svelte` markup and `.toolbar`, `.composer`, `.picker-layer` styles.
+  **Do:**
+  - Apply contextual positioning (absolute or fixed anchored to `toolbarPosition`) to `.toolbar`, `.composer`, and `.picker-layer`.
+  - Style the toolbar as a floating popover/bubble above (or below) the selection with a subtle shadow and pointer arrow or backdrop, ensuring touch targets are minimum 44px for mobile friendliness.
+  - When switching from toolbar to composer or picker, retain the anchor position so the composer opens in place next to the selected passage instead of displacing to document end.
+  - Add `@media (max-width: 640px)` mobile overrides: if the selection is near edges, dock the toolbar/composer gracefully (e.g. pinned bottom bar or clamped floating sheet) so it remains 100% accessible on small screens.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T177f [US12] Anchor highlight card next to clicked highlight in `web/src/lib/components/AnnotationCard.svelte` and `web/src/lib/editor/NoteReader.svelte`.
+  **Read:** `web/src/lib/components/AnnotationCard.svelte` style block (`position: fixed; inset: auto 1rem 1rem auto;`) and `NoteReader.svelte` `onClick`.
+  **Do:**
+  - In `NoteReader.svelte` `onClick(event)`, record the clicked mark's bounding rect or relative position (`openAnchorRect` or `cardPosition`).
+  - Pass anchor position or style prop to `AnnotationCard`.
+  - In `AnnotationCard.svelte`: on wide viewports (desktop/tablet), position the card anchored adjacent to the clicked highlight mark (or in the adjacent margin/gutter aligned with the mark's Y-coordinate), clamped to avoid overflowing the viewport.
+  - On narrow/mobile screens (`max-width: 640px`), fallback to a bottom sheet overlay so it never clips off the side of small screens.
+  **Verify:** `npm --prefix web test -- --run tests/component/AnnotationCard.test.ts tests/component/NoteReader.test.ts`
+
+- [ ] T177g [US12] Verify e2e and accessibility regressions.
+  **Read:** `tests/e2e/us12-floating-selection-ux.spec.ts`, `tests/e2e/us1-notes-highlight.spec.ts`, `tests/e2e/accessibility-notes.spec.ts`.
+  **Do:** Run all note reader Playwright tests on desktop and mobile viewports. Ensure existing click targets, dialog accessibility roles, and escape dismissal remain intact.
+  **Verify:** `npx playwright test tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/accessibility-notes.spec.ts`
+
+**Landmines:**
+- Selection coordinates can collapse or return 0 when clicking outside; verify `range.getBoundingClientRect()` is valid before updating position.
+- Do not let fixed or absolute popovers cause horizontal scrollbars or overflow on mobile devices.
+- Outside-click dismissal (`dismissFromOutside`) must continue to ignore clicks inside the floating toolbar/composer elements.
+- Keep accessibility roles (`role="toolbar"`, `role="dialog"`) and keyboard trap / escape dismissal functional.
+
+**Checkpoint**: Users reading long notes see the action toolbar, composer, and highlight card appear right beside their highlighted text on desktop and touch-friendly on mobile without scrolling down.
+
+---
+
 ## Phase 21: Map, spec trace, and regression (after US8–US12)
 
 **Purpose**: Keep the mental model honest after the new slices.
@@ -604,10 +686,11 @@ JSON decoder rejects unknown fields — OpenAPI + Go struct before any request b
 18. **Phase 18 — Passage matching** depends on Phase 11 `wrapSelection`. Do this before Phase 19 if possible so link-existing uses the same matcher.
 19. **Phase 19 — Link/attach from reading** depends on Phase 18 matcher and US2 picker. Unlinked create uses existing POST `/questions`.
 20. **Phase 20 — Keyboard capture** depends on Phase 19 toolbar/picker so L has a target; Q/A/Escape can ship after Phase 11 if L is ignored when `onLinkExisting` is missing.
-21. **Phase 21 — Map/trace** depends on the phases you actually shipped.
-22. **Phase 22 — Wire Delete note** depends on US1 note get/update and the existing note page. Use US6 preview/execute if those handlers already exist (Phase 8). Do not rebuild deletion backend unless the client has no delete operation to call. Independent of Phases 13–20.
-23. **Phase 23 — Edit canonical question text** depends on the existing US2 question update contract and the Phase 11 highlight card / Phase 13 context surfaces. It is independent of the delete-note wiring and does not require a schema or route change.
-24. **Phase 24 — Optional consequence context** has its minimal scope approved in T190. Implement T191–T195 after the question lifecycle surfaces are available, updating contracts before the schema/API work and preserving the optional, question-only, informational behavior.
+21. **Phase 20a — Floating capture toolbar & mobile highlight positioning** addresses UX feedback on long notes and touch devices: floats the capture toolbar adjacent to highlighted text, anchors the composer/card in-context, and preserves responsive mobile touch access. Depends on Phase 20.
+22. **Phase 21 — Map/trace** depends on the phases you actually shipped.
+23. **Phase 22 — Wire Delete note** depends on US1 note get/update and the existing note page. Use US6 preview/execute if those handlers already exist (Phase 8). Do not rebuild deletion backend unless the client has no delete operation to call. Independent of Phases 13–20a.
+24. **Phase 23 — Edit canonical question text** depends on the existing US2 question update contract and the Phase 11 highlight card / Phase 13 context surfaces. It is independent of the delete-note wiring and does not require a schema or route change.
+25. **Phase 24 — Optional consequence context** has its minimal scope approved in T190. Implement T191–T195 after the question lifecycle surfaces are available, updating contracts before the schema/API work and preserving the optional, question-only, informational behavior.
 
 ### User story dependency graph
 
@@ -624,6 +707,7 @@ US1 + US2 + US3 + US4 + US5 + US6 → US7 Import/Export → Polish
                                                          → Phase 16 defer date (US3)
                                                          → Phase 17 resolved / insert
                                                          → Phase 18 wrap match → Phase 19 link/attach → Phase 20 keys
+                                                         → Phase 20a floating capture & mobile highlight positioning
                                                          → Phase 22 wire Delete note button (US6)
                                                          → Phase 23 edit canonical question text
                                                          → Phase 24 optional consequence context (minimal scope approved)
@@ -716,6 +800,7 @@ Letter siblings are sequential (T143 then T143a).
 18: T166/T166a/T166b unit → T167 composer error → T167a e2e → T168 exact → T168a whitespace → T168b markers → T168c wrapSelection → T169 match-before-create
 19: T170 reader test → T170b unlinked-create test → T171 e2e → T172 picker UI → T172a wrap-without-create → T173 New question → T174 unlinked still listed
 20: T175 keydown test → T175a e2e → T176 onWindowKeydown → T177 toolbar hint
+20a: T177a–T177c tests (reader / card / e2e) → T177d selection coordinates & touch listener → T177e floating toolbar/composer → T177f anchored card/sheet → T177g e2e regression
 21: T178 map → T179 FR-041–047 → T179a FR-048–055 → T179b SC-011–014 → T180 only tests you ran
 22: T181–T182 tests → T183 confirm notesApi → T184 existing page button (not NoteEditor) → T185 invalidate+goto
 23: T186 lifecycle test → T186a card → T186b context → T187 e2e → T188 editor → T189 card onSave → T189a NoteReader → T189b page heading
@@ -780,6 +865,7 @@ All streams must update the same OpenAPI contract and shared fixtures in coordin
 - Commit after each task or small logical group and run affected tests at every checkpoint.
 - Phase 11 is gap remediation on top of a working US1–US7 tree. A new implementation session must read `PROJECT_MAP.md` first and follow its file map rather than rereading the repository.
 - Phases 13–20 are further gap remediation (US8–US12). A new session reads `PROJECT_MAP.md`, **only the current phase in this file**, and only named files. One task per session for small models. Letter-suffixed IDs (`T143a`) are the next slice of the parent task — do not skip ahead. Do not start a later phase to “also add” extra product ideas (AI, flashcards, saved filters, Feynman modes).
+- Phase 20a is UX gap remediation for floating/in-context capture and mobile highlight positioning. Only touches `NoteReader.svelte`, `AnnotationCard.svelte`, and their tests.
 - Phase 22 is gap remediation for Delete note (US6). The control lives on `web/src/routes/notes/[noteId]/+page.svelte`, not `NoteEditor`. A new session reads `PROJECT_MAP.md`, **only Phase 22**, and only named files. Do not add a second delete button.
 - Phase 23 is dog-food gap remediation for canonical question-text editing. A new session reads `PROJECT_MAP.md`, **only Phase 23**, and only named files; do not redo the existing question update API. Put the editor in `QuestionLifecycle`; pass `onSave` through `AnnotationCard` / `NoteReader`.
 - Phase 24 has an approved minimal scope: optional plain-text `consequenceText` for questions only. Follow T191–T191e tests, T192–T192b contracts, T193–T193e backend slices, then T194 UI on `QuestionLifecycle`. Do not broaden the field or give it lifecycle side effects.
