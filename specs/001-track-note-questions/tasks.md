@@ -467,10 +467,11 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   - On narrow/mobile screens (`max-width: 640px`), fallback to a bottom sheet overlay so it never clips off the side of small screens.
   **Verify:** `npm --prefix web test -- --run tests/component/AnnotationCard.test.ts tests/component/NoteReader.test.ts`
 
-- [ ] T177g [US12] Verify e2e and accessibility regressions.
+- [x] T177g [US12] Verify e2e and accessibility regressions.
   **Read:** `tests/e2e/us12-floating-selection-ux.spec.ts`, `tests/e2e/us1-notes-highlight.spec.ts`, `tests/e2e/accessibility-notes.spec.ts`.
   **Do:** Run all note reader Playwright tests on desktop and mobile viewports. Ensure existing click targets, dialog accessibility roles, and escape dismissal remain intact.
   **Verify:** `npx playwright test tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/accessibility-notes.spec.ts`
+  **Result:** Chromium passed all five tests serially (`--project=chromium --workers=1`). Firefox and WebKit were unavailable because their Playwright browser executables are not installed in this environment.
 
 **Landmines:**
 - Selection coordinates can collapse or return 0 when clicking outside; verify `range.getBoundingClientRect()` is valid before updating position.

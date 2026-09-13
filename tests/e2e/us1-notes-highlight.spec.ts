@@ -70,19 +70,28 @@ test('lists notes and captures a highlight question and annotation', async ({ pa
 	await page.getByRole('button', { name: 'Ask a question' }).click();
 	await page.getByLabel('Question text').fill('What does mitochondria do?');
 	await page.getByRole('button', { name: 'Save question' }).click();
-	await expect(page.getByText('The mitochondria is the powerhouse of the cell.')).toBeVisible();
+	const questionHighlight = page
+		.locator('article mark[data-annotation-id]')
+		.filter({ hasText: 'The mitochondria is the powerhouse of the cell.' })
+		.first();
+	await expect(questionHighlight).toBeVisible();
 	await expect(page.locator('body')).not.toContainText('{{question:');
 
-	await page.getByText('The mitochondria is the powerhouse of the cell.').click();
-	await expect(page.getByRole('dialog', { name: /question/i })).toBeVisible();
-	await expect(page.getByText('What does mitochondria do?')).toBeVisible();
+	await questionHighlight.click();
+	const questionDialog = page.getByRole('dialog', { name: /question/i });
+	await expect(questionDialog).toBeVisible();
+	await expect(questionDialog.getByText('What does mitochondria do?', { exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Close' }).click();
 
 	await selectReaderText(page, 'ATP stores energy.');
 	await page.getByRole('button', { name: 'Add annotation' }).click();
 	await page.getByLabel('Annotation').fill('Keep this for later.');
 	await page.getByRole('button', { name: 'Save annotation' }).click();
-	await expect(page.getByText('ATP stores energy.')).toBeVisible();
+	const annotationHighlight = page
+		.locator('article mark[data-annotation-id]')
+		.filter({ hasText: 'ATP stores energy.' })
+		.first();
+	await expect(annotationHighlight).toBeVisible();
 
 	await page.getByRole('link', { name: 'Active Questions' }).click();
 	await expect(page.getByText('What does mitochondria do?')).toBeVisible();
