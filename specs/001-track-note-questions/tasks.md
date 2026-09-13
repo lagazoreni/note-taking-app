@@ -439,7 +439,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ### Implementation for Phase 20a
 
-- [ ] T177d [US12] Implement selection range coordinate calculation in `web/src/lib/editor/NoteReader.svelte`.
+- [x] T177d [US12] Implement selection range coordinate calculation in `web/src/lib/editor/NoteReader.svelte`.
   **Read:** `web/src/lib/editor/NoteReader.svelte` selection handling (`onMouseUp`, `onContextMenu`, `selectedText`).
   **Do:**
   - In `onMouseUp` / `onContextMenu`, obtain `window.getSelection()?.getRangeAt(0)?.getBoundingClientRect()`.

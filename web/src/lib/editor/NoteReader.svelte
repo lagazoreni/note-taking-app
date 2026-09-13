@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import AnnotationCard from '$lib/components/AnnotationCard.svelte';
 	import QuestionPicker from '$lib/components/QuestionPicker.svelte';
 	import { renderNoteHtml } from './markdown';
@@ -29,6 +30,13 @@
 	let openQuestion: Question | null = null;
 	let openPassage = '';
 	let actionLayer: HTMLDivElement | null = null;
+	let readerElement: HTMLDivElement | null = null;
+	let toolbarPosition: { top: number; left: number } | null = null;
+
+	const POSITION_MARGIN = 8;
+	const POSITION_GAP = 8;
+	const ESTIMATED_LAYER_WIDTH = 360;
+	const ESTIMATED_LAYER_HEIGHT = 96;
 
 	$: html = renderNoteHtml(markdown, questions);
 
@@ -36,9 +44,95 @@
 		return window.getSelection()?.toString().trim() ?? '';
 	}
 
+	function clamp(value: number, min: number, max: number): number {
+		return Math.min(Math.max(value, min), max);
+	}
+
+	function selectionRange(): Range | null {
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+		return selection.getRangeAt(0);
+	}
+
+	function isRangeInsideReader(range: Range): boolean {
+		if (!readerElement) return true;
+		const ancestor = (range as Range & { commonAncestorContainer?: Node }).commonAncestorContainer;
+		if (!ancestor) return true;
+		const node = ancestor.nodeType === 3 ? ancestor.parentNode : ancestor;
+		return Boolean(node && readerElement.contains(node));
+	}
+
+	function selectionRect(): DOMRect | null {
+		const range = selectionRange();
+		if (!range || !isRangeInsideReader(range)) return null;
+		if (typeof range.getBoundingClientRect !== 'function') return null;
+		const rect = range.getBoundingClientRect();
+		if (!rect) return null;
+		const values = [rect.top, rect.left, rect.right, rect.bottom, rect.width, rect.height];
+		if (values.some((value) => !Number.isFinite(value))) return null;
+		if (rect.width === 0 && rect.height === 0) return null;
+		return rect;
+	}
+
+	function calculateToolbarPosition(rect: DOMRect): { top: number; left: number } {
+		const viewportWidth = Math.max(window.innerWidth || document.documentElement.clientWidth || 1, 1);
+		const viewportHeight = Math.max(window.innerHeight || document.documentElement.clientHeight || 1, 1);
+		const layerWidth = Math.min(
+			ESTIMATED_LAYER_WIDTH,
+			Math.max(1, viewportWidth - POSITION_MARGIN * 2)
+		);
+		const layerHeight = Math.min(
+			ESTIMATED_LAYER_HEIGHT,
+			Math.max(1, viewportHeight - POSITION_MARGIN * 2)
+		);
+		const minLeft = Math.min(POSITION_MARGIN, viewportWidth);
+		const maxLeft = Math.max(minLeft, viewportWidth - layerWidth - minLeft);
+		const minTop = Math.min(POSITION_MARGIN, viewportHeight);
+		const maxTop = Math.max(minTop, viewportHeight - layerHeight - minTop);
+
+		let top = rect.bottom + POSITION_GAP;
+		if (top > maxTop) {
+			const aboveSelection = rect.top - layerHeight - POSITION_GAP;
+			top = aboveSelection >= minTop ? aboveSelection : maxTop;
+		}
+
+		return {
+			top: Math.round(clamp(top, minTop, maxTop)),
+			left: Math.round(clamp(rect.left, minLeft, maxLeft))
+		};
+	}
+
+	function layerStyle(): string {
+		if (!toolbarPosition) return '';
+		return `position: fixed; top: ${toolbarPosition.top}px; left: ${toolbarPosition.left}px;`;
+	}
+
+	function updateSelectionPosition(): boolean {
+		if (composerOpen || pickerOpen) return false;
+		const range = selectionRange();
+		if (range && !isRangeInsideReader(range)) return false;
+		const text = selectedText();
+		if (!text) {
+			clearSelection();
+			return false;
+		}
+
+		const rect = selectionRect();
+		if (!rect) {
+			clearSelection();
+			return false;
+		}
+
+		selectedPassage = text;
+		toolbarPosition = calculateToolbarPosition(rect);
+		showToolbar = true;
+		return true;
+	}
+
 	function clearSelection() {
 		showToolbar = false;
 		selectedPassage = '';
+		toolbarPosition = null;
 	}
 
 	function cancelComposer() {
@@ -57,22 +151,37 @@
 	}
 
 	function onMouseUp() {
-		const text = selectedText();
-		if (!text) {
-			clearSelection();
-			return;
-		}
-		selectedPassage = text;
-		showToolbar = true;
+		updateSelectionPosition();
 	}
 
 	function onContextMenu(event: MouseEvent) {
-		const text = selectedText();
-		if (!text) return;
-		event.preventDefault();
-		selectedPassage = text;
-		showToolbar = true;
+		if (updateSelectionPosition()) event.preventDefault();
 	}
+
+	function onSelectionChange() {
+		updateSelectionPosition();
+	}
+
+	function onTouchEnd() {
+		updateSelectionPosition();
+	}
+
+	onMount(() => {
+		if (!readerElement) return;
+
+		readerElement.addEventListener('selectionchange', onSelectionChange);
+		readerElement.addEventListener('touchend', onTouchEnd, { passive: true });
+		// Browsers dispatch selectionchange on document rather than the selected
+		// element. Keep the reader listener for direct/test dispatches and use the
+		// document listener as the browser fallback.
+		document.addEventListener('selectionchange', onSelectionChange);
+
+		return () => {
+			readerElement?.removeEventListener('selectionchange', onSelectionChange);
+			readerElement?.removeEventListener('touchend', onTouchEnd);
+			document.removeEventListener('selectionchange', onSelectionChange);
+		};
+	});
 
 	function onClick(event: MouseEvent) {
 		const target = event.target as HTMLElement | null;
@@ -236,7 +345,7 @@
 	onkeydown={onWindowKeydown}
 />
 
-<div class="reader">
+<div class="reader" bind:this={readerElement}>
 	<!-- eslint-disable-next-line svelte/no-unused-svelte-ignore -->
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -- Text selection and highlight clicks are intentionally handled on the reading surface. -->
 	<article
@@ -249,7 +358,13 @@
 		{@html html}
 	</article>
 	{#if showToolbar}
-		<div class="toolbar" role="toolbar" aria-label="Selection actions" bind:this={actionLayer}>
+		<div
+			class="toolbar"
+			role="toolbar"
+			aria-label="Selection actions"
+			style={layerStyle()}
+			bind:this={actionLayer}
+		>
 			<button type="button" onclick={() => openComposer('question')}>Ask a question</button>
 			<button type="button" onclick={() => openComposer('annotation')}>Add annotation</button>
 			{#if onLinkExisting}
@@ -260,7 +375,7 @@
 		</div>
 	{/if}
 	{#if pickerOpen}
-		<div class="picker-layer" bind:this={actionLayer}>
+		<div class="picker-layer" style={layerStyle()} bind:this={actionLayer}>
 			<QuestionPicker questions={linkableQuestions} onSelect={selectExisting} />
 			{#if pickerError}<div class="error" role="alert">{pickerError}</div>{/if}
 			<button type="button" class="secondary" onclick={cancelPicker} disabled={pickerSaving}>
@@ -269,7 +384,7 @@
 		</div>
 	{/if}
 	{#if composerOpen}
-		<div class="composer" bind:this={actionLayer}>
+		<div class="composer" style={layerStyle()} bind:this={actionLayer}>
 			<blockquote>{selectedPassage}</blockquote>
 			{#if composerKind === 'question'}
 				<label for="reader-question-text">Question text</label>
