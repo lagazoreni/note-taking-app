@@ -536,7 +536,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 - [x] T179 Trace FR-041 through FR-047 to tests in `specs/001-track-note-questions/traceability.md`. Do not invent passing evidence.
 - [x] T179a Trace FR-048 through FR-055 in the same file. Do not invent passing evidence.
 - [x] T179b Trace SC-011 through SC-014 in the same file. Do not invent passing evidence.
-- [ ] T180 Run the new Playwright files plus `tests/e2e/us1-notes-highlight.spec.ts`, `tests/e2e/us3-question-lifecycle.spec.ts`, `tests/e2e/us2-shared-question.spec.ts`, `tests/e2e/accessibility-notes.spec.ts`. Record results in `specs/001-track-note-questions/validation-results.md` only for runs you actually executed.
+- [x] T180 Run the new Playwright files plus `tests/e2e/us1-notes-highlight.spec.ts`, `tests/e2e/us3-question-lifecycle.spec.ts`, `tests/e2e/us2-shared-question.spec.ts`, `tests/e2e/accessibility-notes.spec.ts`. Record results in `specs/001-track-note-questions/validation-results.md` only for runs you actually executed.
 
 **Checkpoint**: A new session can implement leftover tasks from the map without rediscovering the tree.
 
