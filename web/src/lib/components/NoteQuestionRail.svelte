@@ -21,7 +21,11 @@
 		.map(({ question }) => question);
 </script>
 
-<aside class="rail" aria-label="Open questions in this note">
+<aside
+	class="rail"
+	aria-label="Open questions in this note"
+	data-note-reader-navigation
+>
 	{#if openQuestions.length === 0}
 		<p class="empty">No open questions in this note</p>
 	{:else}

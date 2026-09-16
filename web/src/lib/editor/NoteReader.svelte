@@ -178,7 +178,7 @@
 		if (!element) return false;
 		return Boolean(
 			element.closest(
-				'[data-note-reader-layer], .toolbar, .composer, .picker-layer, .card, [role="toolbar"], [role="dialog"]'
+				'[data-note-reader-layer], [data-note-reader-navigation], .toolbar, .composer, .picker-layer, .card, [role="toolbar"], [role="dialog"]'
 			)
 		);
 	}

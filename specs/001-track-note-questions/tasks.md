@@ -630,7 +630,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ### Implementation for Phase 21b
 
-- [ ] T180i [US8] Mark note-rail navigation as an intentional internal interaction and preserve card opening.
+- [x] T180i [US8] Mark note-rail navigation as an intentional internal interaction and preserve card opening.
   **Read:** `web/src/lib/editor/NoteReader.svelte` `isInternalInteractiveTarget`, `isInternalInteractiveEvent`, `dismissFromOutside`, and the `focusQuestionId` reactive block; `web/src/lib/components/NoteQuestionRail.svelte` root markup.
   **Do:** Add a stable, semantic navigation marker to the rail root (for example `data-note-reader-navigation`) and recognize that marker through the event target/composed path before the `readerElement`/`openQuestion` outside branches. A rail button or `Next unanswered` click must not clear the card opened by the resulting `focusQuestionId` update. Keep the marker narrow to the note-question rail; preserve normal pointer events and focus. Do not reset `focusQuestionId` as a workaround, move the rail into `NoteReader`, or alter card anchoring.
   **Do not:** bypass outside dismissal for arbitrary siblings or call `preventDefault` on rail controls.
