@@ -6,7 +6,7 @@
 
 **Completed work**: Phases 1–12 (T001–T138), Phase 13 T139–T142, and Phase 24 T190 are archived in [`completed-task.md`](./completed-task.md). Do not re-implement them.
 
-**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. Then read **only the current phase in this file**, then only the files that phase names. For leftover Phase 13 wiring use **T143, T143a, T144**. For highlight/annotation follow-on work, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phases 14–20a**. For the emergency capture-textbox focus regression, use **Phase 21a**. For the no-op Delete note button, use **Phase 22**; for canonical question-text editing, use **Phase 23**; for the approved optional consequence/why-it-matters behavior, use **Phase 24**. Do not scan the whole repo unless the map is stale.
+**New-session start**: Read [`PROJECT_MAP.md`](../../PROJECT_MAP.md) at the repository root before opening other files. Then read **only the current phase in this file**, then only the files that phase names. For leftover Phase 13 wiring use **T143, T143a, T144**. For highlight/annotation follow-on work, Next queue, deferred dates, resolved highlights, sturdier wrapping, reading-view link/attach, and keyboard capture, use **Phases 14–20a**. For the emergency capture-textbox focus regression, use **Phase 21a**; for the note-rail card-opening dismissal regression, use **Phase 21b**. For the no-op Delete note button, use **Phase 22**; for canonical question-text editing, use **Phase 23**; for the approved optional consequence/why-it-matters behavior, use **Phase 24**. Do not scan the whole repo unless the map is stale.
 
 **Tests**: Automated tests are included because the project constitution requires unit, integration, API contract, browser workflow, and container smoke coverage. Within each story, create the listed tests first and verify they fail for the expected missing behavior before implementation.
 
@@ -600,6 +600,55 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ---
 
+## Phase 21b: Note-rail card-opening dismissal hotfix (US8) — emergency UX regression remediation
+
+**Purpose**: Fix a regression exposed after Phase 21a. `NoteQuestionRail` is a sibling of `NoteReader`, not a descendant of its reader/layer DOM. Clicking a question on the right rail runs `selectQuestion`, which sets `focusQuestionId`; `NoteReader` opens the card, but the same pointer/click path is then handled by its `svelte:window` outside-dismissal logic. Because the rail target is outside `readerElement` and is not marked as an internal layer, the newly opened `openQuestion` can be dismissed immediately. The result is that questions on the right side of the note appear not to open. Treat intentional rail navigation as an internal event without weakening genuine outside-click dismissal.
+
+**For a small model.** Read `PROJECT_MAP.md` once, this phase only, then only `web/src/lib/editor/NoteReader.svelte`, `web/src/lib/components/NoteQuestionRail.svelte`, and the test files named below. Implement one task at a time, run its verify command, and stop.
+
+**Independent Test**:
+1. Open an existing note with two open questions. Click the first question button in the right-side rail with a real pointer sequence; its question card remains open after the complete click event and its answer controls are usable.
+2. Click the second rail question and then `Next unanswered`; each intentional rail navigation opens the requested card and does not immediately dismiss it.
+3. Clicking a highlight in the article still opens its card, and an intentional click outside the reader/card still dismisses it. Toolbar/composer/picker focus behavior from Phase 21a remains unchanged.
+4. Repeat at a 375×667 viewport without clipping or horizontal scrolling.
+
+**Do not**:
+- Change backend APIs, domain validation, SQLite schemas, OpenAPI contracts, directive grammar, or question lifecycle behavior.
+- Remove the Phase 21a internal-layer, drag-selection, keyboard, or native-focus guards.
+- Globally ignore outside clicks, add a timeout/race-prone deferred dismissal, or close/reopen cards from the rail by creating a second overlay.
+- Treat every click in the document as internal; genuine outside clicks must remain cancel-safe.
+
+### Tests for Phase 21b (write first; they must fail)
+
+- [ ] T180g [P] [US8] Extend `web/tests/component/NoteReader.test.ts` with the rail-navigation dismissal regression: use an external rail-like button/control to change `focusQuestionId`, exercise the real bubbling `mousedown`/`click` sequence, and assert the requested question dialog remains mounted after the window handlers run. Cover `Next unanswered`-style navigation, repeated navigation to another question, and an intentional outside click that still closes the card. Keep the existing highlight-card and Phase 21a focus assertions unchanged.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+
+- [ ] T180h [P] [US8] Extend `tests/e2e/us8-note-rail.spec.ts`: click a specific question in the right-side rail, assert its card stays visible, then exercise `Next unanswered`; verify the existing highlight click and outside-dismissal paths still work on desktop and at a 375×667 viewport. Do not rewrite the existing rail ordering/assertion coverage.
+  **Verify:** `npx playwright test tests/e2e/us8-note-rail.spec.ts`
+
+### Implementation for Phase 21b
+
+- [ ] T180i [US8] Mark note-rail navigation as an intentional internal interaction and preserve card opening.
+  **Read:** `web/src/lib/editor/NoteReader.svelte` `isInternalInteractiveTarget`, `isInternalInteractiveEvent`, `dismissFromOutside`, and the `focusQuestionId` reactive block; `web/src/lib/components/NoteQuestionRail.svelte` root markup.
+  **Do:** Add a stable, semantic navigation marker to the rail root (for example `data-note-reader-navigation`) and recognize that marker through the event target/composed path before the `readerElement`/`openQuestion` outside branches. A rail button or `Next unanswered` click must not clear the card opened by the resulting `focusQuestionId` update. Keep the marker narrow to the note-question rail; preserve normal pointer events and focus. Do not reset `focusQuestionId` as a workaround, move the rail into `NoteReader`, or alter card anchoring.
+  **Do not:** bypass outside dismissal for arbitrary siblings or call `preventDefault` on rail controls.
+  **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/NoteQuestionRail.test.ts`
+
+- [ ] T180j [US8] Verify the note-rail dismissal fix and Phase 21a regressions.
+  **Read:** `tests/e2e/us8-note-rail.spec.ts`, `tests/e2e/us12-capture-focus.spec.ts`, `tests/e2e/us12-floating-selection-ux.spec.ts`, `tests/e2e/us12-keyboard-capture.spec.ts`, and `tests/e2e/accessibility-notes.spec.ts`.
+  **Do:** Run the rail regression on desktop and mobile plus the capture-focus, floating-toolbar, keyboard, highlight, and accessibility specs. Record only tests actually executed.
+  **Verify:** `npx playwright test tests/e2e/us8-note-rail.spec.ts tests/e2e/us12-capture-focus.spec.ts tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/accessibility-notes.spec.ts`
+
+**Landmines**:
+- The rail is outside `readerElement`, so checking only `readerElement.contains(event.target)` will continue to classify its buttons as outside.
+- Both `svelte:window` `mousedown` and `click` handlers can observe the same rail gesture; guard the event path before the open-card dismissal branch.
+- Do not suppress the `focusQuestionId` update or repeatedly restore the browser selection while a rail card is opening.
+- Preserve `role="dialog"`, Escape dismissal, card controls, and mobile bottom-sheet behavior.
+
+**Checkpoint**: Clicking a question or Next unanswered in the right-side rail opens the requested card and keeps it open, while highlight clicks and genuine outside dismissal continue to work.
+
+---
+
 ## Phase 22: Wire Delete note (US6) — gap remediation
 
 **Purpose**: The note page already shows a Delete note button, but clicking it does nothing. Make that existing control delete the current note (cancel-safe), then leave the note page.
@@ -792,10 +841,11 @@ JSON decoder rejects unknown fields — OpenAPI + Go struct before any request b
 20. **Phase 20 — Keyboard capture** depends on Phase 19 toolbar/picker so L has a target; Q/A/Escape can ship after Phase 11 if L is ignored when `onLinkExisting` is missing.
 21. **Phase 20a — Floating capture toolbar & mobile highlight positioning** addresses UX feedback on long notes and touch devices: floats the capture toolbar adjacent to highlighted text, anchors the composer/card in-context, and preserves responsive mobile touch access. Depends on Phase 20.
 22. **Phase 21 — Map/trace** depends on the phases you actually shipped.
-23. **Phase 21a — Capture composer focus hotfix** depends on the Phase 20a floating interaction code and should be completed before Phase 22. It is client-only and has no backend, schema, or contract dependency.
-24. **Phase 22 — Wire Delete note** depends on US1 note get/update and the existing note page. Use US6 preview/execute if those handlers already exist (Phase 8). Do not rebuild deletion backend unless the client has no delete operation to call. Independent of Phases 13–21a.
-25. **Phase 23 — Edit canonical question text** depends on the existing US2 question update contract and the Phase 11 highlight card / Phase 13 context surfaces. It is independent of the delete-note wiring and does not require a schema or route change.
-26. **Phase 24 — Optional consequence context** has its minimal scope approved in T190. Implement T191–T195 after the question lifecycle surfaces are available, updating contracts before the schema/API work and preserving the optional, question-only, informational behavior.
+23. **Phase 21a — Capture composer focus hotfix** depends on the Phase 20a floating interaction code and should be completed before Phase 21b and Phase 22. It is client-only and has no backend, schema, or contract dependency.
+24. **Phase 21b — Note-rail card-opening dismissal hotfix** depends on the Phase 14 note-question rail / `focusQuestionId` behavior and the Phase 21a window dismissal guards. It is client-only and must preserve both rail navigation and genuine outside dismissal.
+25. **Phase 22 — Wire Delete note** depends on US1 note get/update and the existing note page. Use US6 preview/execute if those handlers already exist (Phase 8). Do not rebuild deletion backend unless the client has no delete operation to call. Independent of Phases 13–21b.
+26. **Phase 23 — Edit canonical question text** depends on the existing US2 question update contract and the Phase 11 highlight card / Phase 13 context surfaces. It is independent of the delete-note wiring and does not require a schema or route change.
+27. **Phase 24 — Optional consequence context** has its minimal scope approved in T190. Implement T191–T195 after the question lifecycle surfaces are available, updating contracts before the schema/API work and preserving the optional, question-only, informational behavior.
 
 ### User story dependency graph
 
@@ -909,6 +959,7 @@ Letter siblings are sequential (T143 then T143a).
 20a: T177a–T177c tests (reader / card / e2e) → T177d selection coordinates & touch listener → T177e floating toolbar/composer → T177f anchored card/sheet → T177g e2e regression
 21: T178 map → T179 FR-041–047 → T179a FR-048–055 → T179b SC-011–014 → T180 only tests you ran
 21a: T180a–T180c focus-regression tests → T180d focus-safe event guards → T180e stable layer transition → T180f e2e/accessibility verification
+21b: T180g–T180h rail-dismissal regression tests → T180i narrow rail-navigation event marker/guard → T180j e2e and Phase 21a regression verification
 22: T181–T182 tests → T183 confirm notesApi → T184 existing page button (not NoteEditor) → T185 invalidate+goto
 23: T186 lifecycle test → T186a card → T186b context → T187 e2e → T188 editor → T189 card onSave → T189a NoteReader → T189b page heading
 24: T190 done → T191–T191e tests by layer → T192 OpenAPI → T192a data-model → T192b spec/plan → T193 domain → T193a migration → T193b store → T193c API → T193d FTS → T193e import → T194 QuestionLifecycle UI → T195 e2e → T195a evidence
@@ -946,9 +997,10 @@ This is the smallest useful slice, but it is not the complete product MVP descri
 8. **Phase 15–16** → Next queue and deferred resume dates.
 9. **Phase 17–20** → resolved highlights, sturdier wrap, link/attach, keyboard.
 10. **Phase 21a** → restore focus in the floating question/annotation capture composer before destructive or later dog-food work.
-11. **Phase 22** → make the existing Delete note button actually delete (cancel-safe).
-12. **Phase 23** → make canonical question text explicitly editable from central and linked-note surfaces.
-13. **Phase 24** → implement the approved optional plain-text consequence/why-it-matters context without changing question lifecycle behavior.
+11. **Phase 21b** → keep right-side note-rail question navigation from being mistaken for an outside click while preserving explicit dismissal.
+12. **Phase 22** → make the existing Delete note button actually delete (cancel-safe).
+13. **Phase 23** → make canonical question text explicitly editable from central and linked-note surfaces.
+14. **Phase 24** → implement the approved optional plain-text consequence/why-it-matters context without changing question lifecycle behavior.
 
 ### Team parallelism
 
@@ -972,9 +1024,10 @@ All streams must update the same OpenAPI contract and shared fixtures in coordin
 - Never log note content, question text, or answer content.
 - Commit after each task or small logical group and run affected tests at every checkpoint.
 - Phase 11 is gap remediation on top of a working US1–US7 tree. A new implementation session must read `PROJECT_MAP.md` first and follow its file map rather than rereading the repository.
-- Phases 13–21a are further gap remediation (US8–US12). A new session reads `PROJECT_MAP.md`, **only the current phase in this file**, and only named files. One task per session for small models. Letter-suffixed IDs (`T143a`) are the next slice of the parent task — do not skip ahead. Do not start a later phase to “also add” extra product ideas (AI, flashcards, saved filters, Feynman modes).
+- Phases 13–21b are further gap remediation (US8–US12). A new session reads `PROJECT_MAP.md`, **only the current phase in this file**, and only named files. One task per session for small models. Letter-suffixed IDs (`T143a`) are the next slice of the parent task — do not skip ahead. Do not start a later phase to “also add” extra product ideas (AI, flashcards, saved filters, Feynman modes).
 - Phase 20a is UX gap remediation for floating/in-context capture and mobile highlight positioning. Only touches `NoteReader.svelte`, `AnnotationCard.svelte`, and their tests.
 - Phase 21a is emergency gap remediation for the Phase 20a capture-composer focus regression. A new session reads `PROJECT_MAP.md`, **only Phase 21a**, and only named files. Keep native textbox focus, floating anchors, keyboard shortcuts, and explicit dismissal intact; do not fix it by disabling outside-click handling globally.
+- Phase 21b is emergency gap remediation for the Phase 21a note-rail card-opening dismissal regression. A new session reads `PROJECT_MAP.md`, **only Phase 21b**, and only named files. Mark only intentional rail navigation as internal; preserve genuine outside-click dismissal and do not move the rail or add a second card.
 - Phase 22 is gap remediation for Delete note (US6). The control lives on `web/src/routes/notes/[noteId]/+page.svelte`, not `NoteEditor`. A new session reads `PROJECT_MAP.md`, **only Phase 22**, and only named files. Do not add a second delete button.
 - Phase 23 is dog-food gap remediation for canonical question-text editing. A new session reads `PROJECT_MAP.md`, **only Phase 23**, and only named files; do not redo the existing question update API. Put the editor in `QuestionLifecycle`; pass `onSave` through `AnnotationCard` / `NoteReader`.
 - Phase 24 has an approved minimal scope: optional plain-text `consequenceText` for questions only. Follow T191–T191e tests, T192–T192b contracts, T193–T193e backend slices, then T194 UI on `QuestionLifecycle`. Do not broaden the field or give it lifecycle side effects.
