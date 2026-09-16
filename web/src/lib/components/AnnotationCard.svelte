@@ -88,6 +88,7 @@
 
 <div
 	class="card"
+	data-note-reader-layer
 	role="dialog"
 	aria-modal="true"
 	aria-labelledby="annotation-card-title"

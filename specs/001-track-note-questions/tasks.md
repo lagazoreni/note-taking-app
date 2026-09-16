@@ -579,7 +579,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   **Do not:** remove the existing drag-selection guard, change capture ordering, or disable outside dismissal for the rest of the document.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T180e [US12] Stabilize the toolbar-to-composer/picker transition in `web/src/lib/editor/NoteReader.svelte` and, only if needed for the interaction boundary, `web/src/lib/components/AnnotationCard.svelte`.
+- [x] T180e [US12] Stabilize the toolbar-to-composer/picker transition in `web/src/lib/editor/NoteReader.svelte` and, only if needed for the interaction boundary, `web/src/lib/components/AnnotationCard.svelte`.
   **Do:** Do not rely on a transient shared `bind:this` value while the toolbar is replaced by the composer or picker; use a stable event-path marker or equivalent refs. Preserve the selected passage, floating coordinates, and preserved range when an action button opens a layer. Ensure the card and nested lifecycle/annotation controls receive normal pointer events and are treated as inside the interactive layer without adding a focus trap or repeatedly forcing focus. Keep the existing desktop anchor and mobile bottom-sheet fallback.
   **Do not:** move the controls back to the end of the article or add a second overlay.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/AnnotationCard.test.ts`

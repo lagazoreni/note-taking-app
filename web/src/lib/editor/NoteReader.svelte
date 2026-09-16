@@ -38,12 +38,12 @@
 		height: number;
 	};
 	let openAnchorRect: AnchorRect | null = null;
-	let actionLayer: HTMLDivElement | null = null;
 	let readerElement: HTMLDivElement | null = null;
 	let toolbarPosition: { top: number; left: number } | null = null;
 	let layerPlacement: 'above' | 'below' = 'below';
 	let mouseSelectionActive = false;
 	let preservedSelectionRange: Range | null = null;
+	let pointerStartedInsideLayer = false;
 
 	const POSITION_MARGIN = 8;
 	const POSITION_GAP = 8;
@@ -166,11 +166,19 @@
 		return `position: fixed; top: ${toolbarPosition.top}px; left: ${toolbarPosition.left}px;`;
 	}
 
+	function asElement(node: EventTarget | null): Element | null {
+		if (!node) return null;
+		if (node instanceof Element) return node;
+		if (node instanceof Node) return node.parentElement;
+		return null;
+	}
+
 	function isInternalInteractiveTarget(node: EventTarget | null): boolean {
-		if (!(node instanceof Element)) return false;
+		const element = asElement(node);
+		if (!element) return false;
 		return Boolean(
-			node.closest(
-				'.toolbar, .composer, .picker-layer, .card, [role="toolbar"], [role="dialog"]'
+			element.closest(
+				'[data-note-reader-layer], .toolbar, .composer, .picker-layer, .card, [role="toolbar"], [role="dialog"]'
 			)
 		);
 	}
@@ -372,13 +380,22 @@
 		}
 	}
 
+	function retainCaptureAnchor() {
+		// The toolbar unmounts in this same event turn when a composer or picker
+		// replaces it. Keep the passage, floating coordinates, and saved range,
+		// and treat the opening gesture as still inside the interactive layer so
+		// a bubbling window click cannot dismiss the layer that just opened.
+		pointerStartedInsideLayer = true;
+		restorePreservedSelection();
+	}
+
 	function openComposer(kind: QuestionKind) {
 		composerKind = kind;
 		composerText = '';
 		composerError = '';
 		composerOpen = true;
 		showToolbar = false;
-		restorePreservedSelection();
+		retainCaptureAnchor();
 	}
 
 	function openLinkPicker() {
@@ -386,7 +403,7 @@
 		pickerError = '';
 		pickerOpen = true;
 		showToolbar = false;
-		restorePreservedSelection();
+		retainCaptureAnchor();
 	}
 
 	async function selectExisting(question: Question) {
@@ -406,17 +423,25 @@
 	}
 
 	function dismissFromOutside(event: MouseEvent) {
-		if (!showToolbar && !composerOpen && !pickerOpen && !openQuestion) return;
-		if (isInternalInteractiveEvent(event)) return;
+		if (!showToolbar && !composerOpen && !pickerOpen && !openQuestion) {
+			pointerStartedInsideLayer = false;
+			return;
+		}
+		// Prefer the event path / marker over a bind:this that is null while the
+		// toolbar is replaced by the composer or picker in this same turn.
+		if (event.type === 'mousedown') {
+			pointerStartedInsideLayer = isInternalInteractiveEvent(event);
+			if (pointerStartedInsideLayer) return;
+		} else {
+			const insideLayer = pointerStartedInsideLayer || isInternalInteractiveEvent(event);
+			if (event.type === 'click') pointerStartedInsideLayer = false;
+			if (insideLayer) return;
+		}
 		// Do not treat pointer movement outside the reader during an active
 		// selection as an outside-click dismissal. The window mouseup handler
 		// finalizes the selection once the drag ends.
 		if (mouseSelectionActive) return;
 		const target = event.target as Node | null;
-		if (actionLayer && target && actionLayer.contains(target)) {
-			restorePreservedSelection();
-			return;
-		}
 		if (readerElement && target && readerElement.contains(target)) {
 			// Reader clicks are not dismissals: they may be a nearby highlight or
 			// the start of a new selection. Keep the current action anchored and
@@ -424,6 +449,7 @@
 			restorePreservedSelection();
 			return;
 		}
+		pointerStartedInsideLayer = false;
 
 		if (composerOpen) {
 			if (!composerSaving) cancelComposer();
@@ -534,9 +560,9 @@
 			class="toolbar"
 			role="toolbar"
 			aria-label="Selection actions"
+			data-note-reader-layer
 			data-placement={layerPlacement}
 			style={layerStyle()}
-			bind:this={actionLayer}
 		>
 			<button type="button" onclick={() => openComposer('question')}>Ask a question</button>
 			<button type="button" onclick={() => openComposer('annotation')}>Add annotation</button>
@@ -550,9 +576,9 @@
 	{#if pickerOpen}
 		<div
 			class="picker-layer"
+			data-note-reader-layer
 			data-placement={layerPlacement}
 			style={layerStyle()}
-			bind:this={actionLayer}
 		>
 			<QuestionPicker questions={linkableQuestions} onSelect={selectExisting} />
 			{#if pickerError}<div class="error" role="alert">{pickerError}</div>{/if}
@@ -564,9 +590,9 @@
 	{#if composerOpen}
 		<div
 			class="composer"
+			data-note-reader-layer
 			data-placement={layerPlacement}
 			style={layerStyle()}
-			bind:this={actionLayer}
 		>
 			<blockquote>{selectedPassage}</blockquote>
 			{#if composerKind === 'question'}
