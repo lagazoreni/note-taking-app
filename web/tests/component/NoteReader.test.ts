@@ -402,6 +402,68 @@ describe('NoteReader', () => {
 		expect(within(dialog).getByText('What causes this?')).toBeInTheDocument();
 	});
 
+	it('keeps cards opened by note-rail navigation through bubbling dismissal handlers', async () => {
+		const secondQuestion: Question = {
+			...question,
+			id: '750e8400-e29b-41d4-a716-446655440000',
+			questionText: 'What happens next?'
+		};
+		const { rerender } = render(NoteReader, {
+			markdown: `Lead {{question:${id}}}first passage{{/question}}. Then {{question:${secondQuestion.id}}}second passage{{/question}}.`,
+			questions: [question, secondQuestion]
+		});
+
+		// Model the sibling NoteQuestionRail without putting it inside NoteReader.
+		// The navigation marker is the contract exercised by the implementation task
+		// that follows this regression test.
+		const rail = document.createElement('aside');
+		rail.dataset.noteReaderNavigation = '';
+		const firstQuestionButton = document.createElement('button');
+		firstQuestionButton.type = 'button';
+		firstQuestionButton.textContent = 'First question';
+		firstQuestionButton.addEventListener('click', () => rerender({ focusQuestionId: id }));
+		const nextButton = document.createElement('button');
+		nextButton.type = 'button';
+		nextButton.textContent = 'Next unanswered';
+		nextButton.addEventListener('click', () =>
+			rerender({ focusQuestionId: secondQuestion.id })
+		);
+		const secondQuestionButton = document.createElement('button');
+		secondQuestionButton.type = 'button';
+		secondQuestionButton.textContent = 'Second question';
+		secondQuestionButton.addEventListener('click', () =>
+			rerender({ focusQuestionId: secondQuestion.id })
+		);
+		rail.append(firstQuestionButton, nextButton, secondQuestionButton);
+		document.body.append(rail);
+
+		try {
+			await clickWithPointer(firstQuestionButton);
+			let dialog = screen.getByRole('dialog', { name: /question/i });
+			expect(within(dialog).getByText('What causes this?')).toBeInTheDocument();
+
+			await clickWithPointer(nextButton);
+			dialog = screen.getByRole('dialog', { name: /question/i });
+			expect(within(dialog).getByText('What happens next?')).toBeInTheDocument();
+
+			// Repeated rail navigation must replace the open card, not dismiss the
+			// newly requested card during the same bubbling click.
+			await clickWithPointer(firstQuestionButton);
+			dialog = screen.getByRole('dialog', { name: /question/i });
+			expect(within(dialog).getByText('What causes this?')).toBeInTheDocument();
+
+			await clickWithPointer(secondQuestionButton);
+			dialog = screen.getByRole('dialog', { name: /question/i });
+			expect(within(dialog).getByText('What happens next?')).toBeInTheDocument();
+
+			// A genuine click outside the reader/card remains a dismissal.
+			await clickWithPointer(document.body);
+			expect(screen.queryByRole('dialog', { name: /question/i })).not.toBeInTheDocument();
+		} finally {
+			rail.remove();
+		}
+	});
+
 	it('keeps the question composer focused through internal pointer and selection events', async () => {
 		const onCapture = vi.fn().mockResolvedValue(undefined);
 		render(NoteReader, { markdown: 'Select this passage.', questions: [], onCapture });

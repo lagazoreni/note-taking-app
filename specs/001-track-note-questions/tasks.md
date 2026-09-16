@@ -620,8 +620,9 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ### Tests for Phase 21b (write first; they must fail)
 
-- [ ] T180g [P] [US8] Extend `web/tests/component/NoteReader.test.ts` with the rail-navigation dismissal regression: use an external rail-like button/control to change `focusQuestionId`, exercise the real bubbling `mousedown`/`click` sequence, and assert the requested question dialog remains mounted after the window handlers run. Cover `Next unanswered`-style navigation, repeated navigation to another question, and an intentional outside click that still closes the card. Keep the existing highlight-card and Phase 21a focus assertions unchanged.
+- [x] T180g [P] [US8] Extend `web/tests/component/NoteReader.test.ts` with the rail-navigation dismissal regression: use an external rail-like button/control to change `focusQuestionId`, exercise the real bubbling `mousedown`/`click` sequence, and assert the requested question dialog remains mounted after the window handlers run. Cover `Next unanswered`-style navigation, repeated navigation to another question, and an intentional outside click that still closes the card. Keep the existing highlight-card and Phase 21a focus assertions unchanged.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
+  **Result:** Added the regression coverage; it currently fails as expected until T180i recognizes the note-rail navigation marker.
 
 - [ ] T180h [P] [US8] Extend `tests/e2e/us8-note-rail.spec.ts`: click a specific question in the right-side rail, assert its card stays visible, then exercise `Next unanswered`; verify the existing highlight click and outside-dismissal paths still work on desktop and at a 375×667 viewport. Do not rewrite the existing rail ordering/assertion coverage.
   **Verify:** `npx playwright test tests/e2e/us8-note-rail.spec.ts`
