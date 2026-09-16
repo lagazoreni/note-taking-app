@@ -584,7 +584,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   **Do not:** move the controls back to the end of the article or add a second overlay.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/AnnotationCard.test.ts`
 
-- [ ] T180f [US12] Verify the emergency focus fix and regressions.
+- [x] T180f [US12] Verify the emergency focus fix and regressions.
   **Read:** `tests/e2e/us12-capture-focus.spec.ts`, `tests/e2e/us12-floating-selection-ux.spec.ts`, `tests/e2e/us12-keyboard-capture.spec.ts`, and `tests/e2e/accessibility-notes.spec.ts`.
   **Do:** Run the new focus spec on desktop and mobile plus the existing floating-toolbar, keyboard-capture, highlight, and accessibility specs. Confirm typing in the question/annotation controls, Q/A/L/Escape behavior, dialog roles, outside-click dismissal, and mobile viewport safety. Record only results from tests actually executed.
   **Verify:** `npx playwright test tests/e2e/us12-capture-focus.spec.ts tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/accessibility-notes.spec.ts`
