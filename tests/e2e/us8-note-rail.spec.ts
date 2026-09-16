@@ -85,6 +85,63 @@ async function answerOpenQuestion(page: Page, questionText: string, answer: stri
 	await dialog.getByRole('button', { name: 'Close' }).click();
 }
 
+async function dismissFromOutside(page: Page) {
+	// Dispatch on the document body so the target is outside the reader, rail,
+	// and card without navigating away from the note.
+	await page.locator('body').dispatchEvent('mousedown');
+	await page.locator('body').dispatchEvent('mouseup');
+	await page.locator('body').dispatchEvent('click');
+}
+
+async function exerciseRailCardNavigation(page: Page, suffix: string) {
+	const workspaceName = `Rail dismissal ${suffix}`;
+	const noteTitle = `Rail dismissal note ${suffix}`;
+	const firstPassage = `First dismissal passage ${suffix}.`;
+	const secondPassage = `Second dismissal passage ${suffix}.`;
+	const firstQuestion = `First rail navigation question ${suffix}`;
+	const secondQuestion = `Second rail navigation question ${suffix}`;
+
+	await createWorkspace(page, workspaceName);
+	await createNote(page, noteTitle, [ firstPassage, secondPassage ].join(' '));
+	await captureQuestion(page, firstPassage, firstQuestion);
+	await captureQuestion(page, secondPassage, secondQuestion);
+	await page.reload();
+	await expect(page.getByRole('article', { name: 'Reading note' })).toBeVisible();
+
+	const rail = page.getByRole('complementary', { name: 'Open questions in this note' });
+	await expect(rail).toBeVisible();
+
+	// This is a real pointer/click path through the external rail. The card
+	// opened by focusQuestionId must survive both window outside-dismissal
+	// handlers observing the same gesture.
+	const firstRailButton = rail.getByRole('button').filter({ hasText: firstQuestion });
+	await expect(firstRailButton).toHaveCount(1);
+	await firstRailButton.click();
+
+	const dialog = page.getByRole('dialog', { name: /question/i });
+	await expect(dialog).toBeVisible();
+	await expect(dialog).toContainText(firstQuestion);
+
+	await rail.getByRole('button', { name: 'Next unanswered' }).click();
+	await expect(dialog).toBeVisible();
+	await expect(dialog).toContainText(secondQuestion);
+
+	// A highlight click still opens the card after rail navigation has been
+	// exercised.
+	await dialog.getByRole('button', { name: 'Close' }).click();
+	const reader = page.getByRole('article', { name: 'Reading note' });
+	const firstHighlight = reader.locator('mark[data-annotation-id]').filter({ hasText: firstPassage });
+	await expect(firstHighlight).toHaveCount(1);
+	await firstHighlight.click();
+	await expect(dialog).toBeVisible();
+	await expect(dialog).toContainText(firstQuestion);
+
+	// A genuine outside click remains a dismissal, unlike the intentional rail
+	// navigation above.
+	await dismissFromOutside(page);
+	await expect(dialog).toBeHidden();
+}
+
 test('walks open questions in note order and excludes annotations and answered questions', async ({
 	page
 }, info) => {
@@ -146,4 +203,18 @@ test('walks open questions in note order and excludes annotations and answered q
 	if (await nextButton.count()) await expect(nextButton).toBeDisabled();
 	await expect(rail).not.toContainText(annotationText);
 	await expect(rail).not.toContainText(answeredQuestion);
+});
+
+test('keeps rail card navigation open and preserves highlight/outside dismissal', async ({ page }, info) => {
+	await externalNetworkBlock(page);
+	await exerciseRailCardNavigation(page, `${info.project.name}-${Date.now()}`);
+});
+
+test.describe('rail card navigation on mobile', () => {
+	test.use({ viewport: { width: 375, height: 667 } });
+
+	test('keeps rail card navigation open and preserves highlight/outside dismissal', async ({ page }, info) => {
+		await externalNetworkBlock(page);
+		await exerciseRailCardNavigation(page, `mobile-${info.project.name}-${Date.now()}`);
+	});
 });

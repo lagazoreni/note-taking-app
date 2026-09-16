@@ -624,8 +624,9 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
   **Result:** Added the regression coverage; it currently fails as expected until T180i recognizes the note-rail navigation marker.
 
-- [ ] T180h [P] [US8] Extend `tests/e2e/us8-note-rail.spec.ts`: click a specific question in the right-side rail, assert its card stays visible, then exercise `Next unanswered`; verify the existing highlight click and outside-dismissal paths still work on desktop and at a 375×667 viewport. Do not rewrite the existing rail ordering/assertion coverage.
+- [x] T180h [P] [US8] Extend `tests/e2e/us8-note-rail.spec.ts`: click a specific question in the right-side rail, assert its card stays visible, then exercise `Next unanswered`; verify the existing highlight click and outside-dismissal paths still work on desktop and at a 375×667 viewport. Do not rewrite the existing rail ordering/assertion coverage.
   **Verify:** `npx playwright test tests/e2e/us8-note-rail.spec.ts`
+  **Result:** Added desktop and 375×667 coverage. The new rail assertions fail as expected until T180i adds the note-rail internal-interaction marker; Firefox/WebKit executables are unavailable in this environment.
 
 ### Implementation for Phase 21b
 
