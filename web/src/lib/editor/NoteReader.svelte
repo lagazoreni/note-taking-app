@@ -166,8 +166,32 @@
 		return `position: fixed; top: ${toolbarPosition.top}px; left: ${toolbarPosition.left}px;`;
 	}
 
+	function isInternalInteractiveTarget(node: EventTarget | null): boolean {
+		if (!(node instanceof Element)) return false;
+		return Boolean(
+			node.closest(
+				'.toolbar, .composer, .picker-layer, .card, [role="toolbar"], [role="dialog"]'
+			)
+		);
+	}
+
+	function isInternalInteractiveEvent(event: Event): boolean {
+		const target = event.target;
+		if (isInternalInteractiveTarget(target)) return true;
+		if (typeof event.composedPath === 'function') {
+			return event.composedPath().some(isInternalInteractiveTarget);
+		}
+		return false;
+	}
+
+	function isInternalActiveElement(): boolean {
+		if (typeof document === 'undefined') return false;
+		return isInternalInteractiveTarget(document.activeElement);
+	}
+
 	function updateSelectionPosition(): boolean {
 		if (mouseSelectionActive) return false;
+		if (isInternalActiveElement()) return false;
 		if (composerOpen || pickerOpen) {
 			// Focusing a popover control can collapse the browser selection. Restore
 			// the saved range while the composer or picker is active so the passage
@@ -270,11 +294,13 @@
 		if (updateSelectionPosition()) event.preventDefault();
 	}
 
-	function onSelectionChange() {
+	function onSelectionChange(event?: Event) {
 		// Browsers can emit several selectionchange events while the pointer is
 		// still dragging. Wait for mouseup so the toolbar cannot flash over the
 		// passage or replace a stable action layer with an intermediate range.
 		if (mouseSelectionActive) return;
+		if (isInternalActiveElement()) return;
+		if (event && isInternalInteractiveEvent(event)) return;
 		updateSelectionPosition();
 	}
 
@@ -380,7 +406,8 @@
 	}
 
 	function dismissFromOutside(event: MouseEvent) {
-		if (!showToolbar && !composerOpen && !pickerOpen) return;
+		if (!showToolbar && !composerOpen && !pickerOpen && !openQuestion) return;
+		if (isInternalInteractiveEvent(event)) return;
 		// Do not treat pointer movement outside the reader during an active
 		// selection as an outside-click dismissal. The window mouseup handler
 		// finalizes the selection once the drag ends.
@@ -398,27 +425,17 @@
 			return;
 		}
 
-		// The action that opens the composer removes the toolbar and adds the composer
-		// during the same click. By the time the window click handler runs, the
-		// bind:this value can briefly be null, even though the click originated in
-		// the toolbar. Inspect the event path as well so that action clicks are not
-		// mistaken for outside clicks during that transition.
-		const cameFromActionLayer = event
-			.composedPath()
-			.some(
-				(node) =>
-					node instanceof HTMLElement &&
-					(node.classList.contains('toolbar') ||
-						node.classList.contains('composer') ||
-						node.classList.contains('picker-layer'))
-			);
-		if (cameFromActionLayer) return;
 		if (composerOpen) {
 			if (!composerSaving) cancelComposer();
 			return;
 		}
 		if (pickerOpen) {
 			if (!pickerSaving) cancelPicker();
+			return;
+		}
+		if (openQuestion) {
+			openQuestion = null;
+			openAnchorRect = null;
 			return;
 		}
 		clearSelection();

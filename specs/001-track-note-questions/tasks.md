@@ -573,7 +573,7 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ### Implementation for Phase 21a
 
-- [ ] T180d [US12] Make `web/src/lib/editor/NoteReader.svelte` focus-safe for internal pointer events.
+- [x] T180d [US12] Make `web/src/lib/editor/NoteReader.svelte` focus-safe for internal pointer events.
   **Read:** `dismissFromOutside`, `onWindowMouseDown`, `onWindowClick`, `onSelectionChange`, `updateSelectionPosition`, and the toolbar/composer/picker markup.
   **Do:** Add one event-path/active-element guard that recognizes descendants of `.toolbar`, `.composer`, `.picker-layer`, and the anchored `.card` as internal interactive content. Check it before the reader/outside branches. Pointerdown, click, and selectionchange events from those controls must not call `clearSelection`, recompute the anchor, or call `restorePreservedSelection` in a way that moves focus; do not call `preventDefault` for normal control interaction. While a composer, picker, or card control owns focus, keep `selectedPassage`, `preservedSelectionRange`, and `toolbarPosition` stable. Keep Escape and genuine outside clicks cancel-safe.
   **Do not:** remove the existing drag-selection guard, change capture ordering, or disable outside dismissal for the rest of the document.
