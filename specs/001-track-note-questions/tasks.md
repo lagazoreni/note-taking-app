@@ -636,10 +636,11 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
   **Do not:** bypass outside dismissal for arbitrary siblings or call `preventDefault` on rail controls.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts tests/component/NoteQuestionRail.test.ts`
 
-- [ ] T180j [US8] Verify the note-rail dismissal fix and Phase 21a regressions.
+- [x] T180j [US8] Verify the note-rail dismissal fix and Phase 21a regressions.
   **Read:** `tests/e2e/us8-note-rail.spec.ts`, `tests/e2e/us12-capture-focus.spec.ts`, `tests/e2e/us12-floating-selection-ux.spec.ts`, `tests/e2e/us12-keyboard-capture.spec.ts`, and `tests/e2e/accessibility-notes.spec.ts`.
   **Do:** Run the rail regression on desktop and mobile plus the capture-focus, floating-toolbar, keyboard, highlight, and accessibility specs. Record only tests actually executed.
   **Verify:** `npx playwright test tests/e2e/us8-note-rail.spec.ts tests/e2e/us12-capture-focus.spec.ts tests/e2e/us12-floating-selection-ux.spec.ts tests/e2e/us12-keyboard-capture.spec.ts tests/e2e/us1-notes-highlight.spec.ts tests/e2e/accessibility-notes.spec.ts`
+  **Result:** Chromium serial run passed all 11 tests (`--project=chromium --workers=1`), including the desktop/mobile rail dismissal scenarios and Phase 21a focus, floating-toolbar, keyboard, highlight, and accessibility regressions. Firefox/WebKit executables are unavailable in this environment.
 
 **Landmines**:
 - The rail is outside `readerElement`, so checking only `readerElement.contains(event.target)` will continue to classify its buttons as outside.

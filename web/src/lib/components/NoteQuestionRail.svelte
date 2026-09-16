@@ -51,6 +51,8 @@
 
 <style>
 	.rail {
+		position: relative;
+		z-index: 21;
 		padding: 0.8rem;
 		background: #f8fafc;
 		border: 1px solid #e2e8f0;
