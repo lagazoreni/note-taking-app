@@ -562,13 +562,13 @@ Reading toolbar today is Ask a question / Add annotation / Cancel. `QuestionPick
 
 ### Tests for Phase 21a (write first; they must fail)
 
-- [ ] T180a [P] [US12] Extend `web/tests/component/NoteReader.test.ts` with the capture-composer focus regression: use a real user pointer sequence after selecting a passage, click "Ask a question", click/fill the `Question text` input, and assert that it remains `document.activeElement`, the composer remains mounted, and the value survives window `mousedown`/`click` and `selectionchange` events. Repeat for "Add annotation" and its textarea. On save, assert `onCapture` receives the entered text. Do not rely on programmatic `.focus()` alone.
+- [x] T180a [P] [US12] Extend `web/tests/component/NoteReader.test.ts` with the capture-composer focus regression: use a real user pointer sequence after selecting a passage, click "Ask a question", click/fill the `Question text` input, and assert that it remains `document.activeElement`, the composer remains mounted, and the value survives window `mousedown`/`click` and `selectionchange` events. Repeat for "Add annotation" and its textarea. On save, assert `onCapture` receives the entered text. Do not rely on programmatic `.focus()` alone.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T180b [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: open a positioned question highlight card and an annotation highlight card, then click/fill the card's editable Answer or Annotation control. Assert that focus and typed content remain stable, `onClose` is not invoked by the internal interaction, and an intentional outside click still closes it. Preserve the existing anchored and mobile-safe assertions.
+- [x] T180b [P] [US12] Extend `web/tests/component/NoteReader.test.ts` only: open a positioned question highlight card and an annotation highlight card, then click/fill the card's editable Answer or Annotation control. Assert that focus and typed content remain stable, `onClose` is not invoked by the internal interaction, and an intentional outside click still closes it. Preserve the existing anchored and mobile-safe assertions.
   **Verify:** `npm --prefix web test -- --run tests/component/NoteReader.test.ts`
 
-- [ ] T180c [P] [US12] Add `tests/e2e/us12-capture-focus.spec.ts`: on desktop and a 375×667 mobile viewport, select a passage, open the question composer, fill the question textbox, and save; repeat with the annotation textarea. Assert the composer does not disappear while typing, the saved values are used, and Escape/cancel plus an intentional outside click still work. Keep the existing floating-toolbar and accessibility specs unchanged.
+- [x] T180c [P] [US12] Add `tests/e2e/us12-capture-focus.spec.ts`: on desktop and a 375×667 mobile viewport, select a passage, open the question composer, fill the question textbox, and save; repeat with the annotation textarea. Assert the composer does not disappear while typing, the saved values are used, and Escape/cancel plus an intentional outside click still work. Keep the existing floating-toolbar and accessibility specs unchanged.
   **Verify:** `npx playwright test tests/e2e/us12-capture-focus.spec.ts`
 
 ### Implementation for Phase 21a

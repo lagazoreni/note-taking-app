@@ -22,6 +22,13 @@ const question: Question = {
 	kind: 'question'
 };
 
+const annotation: Question = {
+	...question,
+	id: '650e8400-e29b-41d4-a716-446655440000',
+	questionText: 'Existing annotation',
+	kind: 'annotation'
+};
+
 type SelectionBounds = {
 	top: number;
 	left: number;
@@ -64,6 +71,31 @@ function expectInsideViewport(element: HTMLElement) {
 	expect(left).toBeGreaterThanOrEqual(0);
 	expect(top).toBeLessThanOrEqual(window.innerHeight);
 	expect(left).toBeLessThanOrEqual(window.innerWidth);
+}
+
+async function selectPassageWithPointer(article: HTMLElement, passage: string) {
+	mockSelection(passage);
+	await fireEvent.mouseDown(article, { button: 0 });
+	await fireEvent.mouseUp(article, { button: 0 });
+}
+
+async function clickWithPointer(element: HTMLElement) {
+	await fireEvent.mouseDown(element, { button: 0 });
+	await fireEvent.mouseUp(element, { button: 0 });
+	await fireEvent.click(element);
+}
+
+async function focusAndFillWithPointer(
+	control: HTMLInputElement | HTMLTextAreaElement,
+	value: string
+) {
+	await fireEvent.mouseDown(control, { button: 0 });
+	// jsdom does not perform the browser's default focus action for fireEvent.
+	// Keep the pointer sequence, then model that native action before mouseup/click.
+	control.focus();
+	await fireEvent.input(control, { target: { value } });
+	await fireEvent.mouseUp(control, { button: 0 });
+	await fireEvent.click(control);
 }
 
 describe('NoteReader', () => {
@@ -172,6 +204,78 @@ describe('NoteReader', () => {
 		await fireEvent.click(screen.getByText('selected passage'));
 		expect(screen.getByRole('dialog', { name: /question/i })).toBeInTheDocument();
 		expect(screen.getByText('What causes this?')).toBeInTheDocument();
+	});
+
+	it('keeps a positioned question card open while editing its answer', async () => {
+		render(NoteReader, {
+			markdown: `Lead {{question:${id}}}selected passage{{/question}} tail`,
+			questions: [question]
+		});
+		const mark = document.querySelector('mark[data-annotation-id]');
+		expect(mark).toBeInstanceOf(HTMLElement);
+		Object.defineProperty(mark, 'getBoundingClientRect', {
+			configurable: true,
+			value: () => ({
+				top: 120,
+				left: 80,
+				right: 220,
+				bottom: 145,
+				width: 140,
+				height: 25
+			})
+		});
+
+		await clickWithPointer(mark as HTMLElement);
+		const card = screen.getByRole('dialog', { name: /question/i });
+		expectFloating(card);
+
+		const answer = within(card).getByLabelText('Answer') as HTMLTextAreaElement;
+		const enteredAnswer = 'Because the surrounding conditions changed.';
+		await focusAndFillWithPointer(answer, enteredAnswer);
+		document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+
+		expect(document.activeElement).toBe(answer);
+		expect(answer).toHaveValue(enteredAnswer);
+		expect(screen.getByRole('dialog', { name: /question/i })).toBeInTheDocument();
+
+		await clickWithPointer(document.body);
+		expect(screen.queryByRole('dialog', { name: /question/i })).not.toBeInTheDocument();
+	});
+
+	it('keeps a positioned annotation card open while editing its annotation', async () => {
+		render(NoteReader, {
+			markdown: `Lead {{question:${annotation.id}}}annotated passage{{/question}} tail`,
+			questions: [annotation]
+		});
+		const mark = document.querySelector('mark[data-annotation-id]');
+		expect(mark).toBeInstanceOf(HTMLElement);
+		Object.defineProperty(mark, 'getBoundingClientRect', {
+			configurable: true,
+			value: () => ({
+				top: 160,
+				left: 100,
+				right: 250,
+				bottom: 185,
+				width: 150,
+				height: 25
+			})
+		});
+
+		await clickWithPointer(mark as HTMLElement);
+		const card = screen.getByRole('dialog', { name: /annotation/i });
+		expectFloating(card);
+
+		const annotationField = within(card).getByLabelText('Annotation') as HTMLTextAreaElement;
+		const enteredAnnotation = 'Keep this example for the next review.';
+		await focusAndFillWithPointer(annotationField, enteredAnnotation);
+		document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+
+		expect(document.activeElement).toBe(annotationField);
+		expect(annotationField).toHaveValue(enteredAnnotation);
+		expect(screen.getByRole('dialog', { name: /annotation/i })).toBeInTheDocument();
+
+		await clickWithPointer(document.body);
+		expect(screen.queryByRole('dialog', { name: /annotation/i })).not.toBeInTheDocument();
 	});
 
 	it('opens the existing-question picker and links the selected passage', async () => {
@@ -296,6 +400,50 @@ describe('NoteReader', () => {
 		expect(dialog).toBeInTheDocument();
 		expect(within(dialog).getByText('selected passage')).toBeInTheDocument();
 		expect(within(dialog).getByText('What causes this?')).toBeInTheDocument();
+	});
+
+	it('keeps the question composer focused through internal pointer and selection events', async () => {
+		const onCapture = vi.fn().mockResolvedValue(undefined);
+		render(NoteReader, { markdown: 'Select this passage.', questions: [], onCapture });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		const questionText = 'Why does this happen?';
+
+		await selectPassageWithPointer(article, 'Select this passage.');
+		await clickWithPointer(screen.getByRole('button', { name: 'Ask a question' }));
+
+		const input = screen.getByLabelText('Question text') as HTMLInputElement;
+		await focusAndFillWithPointer(input, questionText);
+		document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+
+		expect(document.activeElement).toBe(input);
+		expect(input).toHaveValue(questionText);
+		expect(document.querySelector('.composer')).toBeInTheDocument();
+
+		await clickWithPointer(screen.getByRole('button', { name: 'Save question' }));
+		expect(onCapture).toHaveBeenCalledOnce();
+		expect(onCapture).toHaveBeenCalledWith('question', 'Select this passage.', questionText);
+	});
+
+	it('keeps the annotation composer focused through internal pointer and selection events', async () => {
+		const onCapture = vi.fn().mockResolvedValue(undefined);
+		render(NoteReader, { markdown: 'Annotate this passage.', questions: [], onCapture });
+		const article = screen.getByRole('article', { name: 'Reading note' });
+		const annotationText = 'Remember this context.';
+
+		await selectPassageWithPointer(article, 'Annotate this passage.');
+		await clickWithPointer(screen.getByRole('button', { name: 'Add annotation' }));
+
+		const textarea = screen.getByLabelText('Annotation') as HTMLTextAreaElement;
+		await focusAndFillWithPointer(textarea, annotationText);
+		document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+
+		expect(document.activeElement).toBe(textarea);
+		expect(textarea).toHaveValue(annotationText);
+		expect(document.querySelector('.composer')).toBeInTheDocument();
+
+		await clickWithPointer(screen.getByRole('button', { name: 'Save annotation' }));
+		expect(onCapture).toHaveBeenCalledOnce();
+		expect(onCapture).toHaveBeenCalledWith('annotation', 'Annotate this passage.', annotationText);
 	});
 
 	it('shows capture errors and keeps the composer open', async () => {
