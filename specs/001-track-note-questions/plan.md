@@ -6,7 +6,7 @@
 
 ## Summary
 
-Build an offline-capable, local-first web application with a statically built SvelteKit frontend and a Go HTTP backend backed by one SQLite database. The Go service is authoritative for question lifecycle rules, note/question relationships, deletion review, filtering, search, and atomic import/export. The SvelteKit application provides responsive note editing, question views, workspace navigation, and a cached application shell. Production uses one container and one origin: the Go process serves the versioned API and the built frontend assets, while `/data` is the declared persistent volume.
+Build an offline-capable, local-first web application with a statically built SvelteKit frontend and a Go HTTP backend backed by one SQLite database. The Go service is authoritative for question lifecycle rules, note/question relationships, deletion review, filtering, search, and atomic import/export. The SvelteKit application provides responsive note editing, question views, first-run workspace onboarding and selection, workspace navigation, and a cached application shell. Production uses one container and one origin: the Go process serves the versioned API and the built frontend assets, while `/data` is the declared persistent volume.
 
 Notes use portable Markdown for paragraphs and lists, plus a documented question-reference directive for inline shared questions. SQLite relational tables model shared questions and tags; FTS5 indexes notes, questions, and answers. HTTP interfaces are documented with OpenAPI 3.1, use stable error envelopes and optimistic versions, and are tested on both frontend and backend.
 
@@ -26,7 +26,7 @@ Notes use portable Markdown for paragraphs and lists, plus a documented question
 
 **Performance Goals**: Show local question edits in all active views within 1 second; return 95% of searches over 10,000 notes and 50,000 questions within 2 seconds; filter/sort 50,000 questions within 2 seconds; create or update common records within 500 ms under normal local use
 
-**Constraints**: Core use must require no internet connection while the local Go service remains running and reachable; no authentication; one local user; backend is authoritative; no silent data loss; imports and destructive note operations are atomic; cross-workspace note/question moves are outside MVP scope; frontend and API remain usable on narrow and wide viewports; production runs non-root with one declared persistent volume
+**Constraints**: Core use must require no internet connection while the local Go service remains running and reachable; no authentication; one local user; backend is authoritative; no silent data loss; imports and destructive note operations are atomic; note creation requires a valid selected workspace and the first-run flow must let the user create one; cross-workspace note/question moves are outside MVP scope; frontend and API remain usable on narrow and wide viewports; production runs non-root with one declared persistent volume
 
 **Scale/Scope**: One local user, multiple workspaces, up to 10,000 notes and 50,000 questions, seven MVP user journeys, approximately 25 application routes/components and a versioned HTTP API
 
@@ -135,6 +135,13 @@ Makefile
 - The UI retains unsaved editor text during transient API failures, displays a recoverable error, and lets the user retry. Successful mutations replace local view state with the API response and invalidate affected query stores.
 - Reminder checks occur while the application is open. With permission, browser notifications are used; otherwise reminders remain visible in-app. Missed reminders are surfaced on the next open. Reliable closed-browser scheduled alerts are explicitly outside MVP browser capabilities.
 
+### Workspace bootstrap and selection
+
+- A workspace is an explicit prerequisite for note and question capture; the application does not invent an unnamed default workspace and does not send note mutations with a missing workspace ID.
+- On startup, the frontend loads the workspace list before enabling workspace-scoped routes. When the list is empty, the shell and home/notes entry points provide a clear path to the workspace creation form.
+- Creating a workspace uses `POST /api/v1/workspaces`, selects the returned workspace immediately, and persists that selection for subsequent navigation. A failed create leaves the form usable and does not claim that a workspace exists.
+- If a persisted workspace ID is missing from the latest workspace list, the frontend clears it, selects the first available workspace when one exists, or returns to the workspace setup state when none exists. Note creation is blocked with an actionable workspace CTA until a valid selection exists.
+
 ### Persistence and consistency
 
 - SQLite runs with `PRAGMA foreign_keys=ON`, WAL journal mode, a busy timeout, and explicit transactions for multi-record operations.
@@ -146,7 +153,8 @@ Makefile
 ### Editing and content
 
 - `bodyMarkdown` is the canonical note body. MVP syntax includes paragraphs and ordered/unordered lists.
-- Inline questions use `{{question:<id>}}`; presentation is stored on the corresponding note-question link, not encoded in visible prose.
+- Reading capture wraps a selected passage as `{{question:<id>}}passage{{/question}}`; bare `{{question:<id>}}` remains valid for legacy or unanchored questions. The closing token is part of the wrap and is not a second directive.
+- The reading view tokenizes directives, renders wrapped passages as sanitized clickable highlights and bare directives as marker chips, and opens a card for the canonical question or annotation. Raw directive tokens are never shown in reading view.
 - The backend rejects malformed, duplicated, foreign-workspace, or unlinked directives. The frontend inserts/removes directives through editor controls so users do not need to type IDs.
 - Preview HTML is rendered from Markdown and sanitized before insertion into the document. Raw HTML in Markdown is disabled.
 
@@ -162,7 +170,7 @@ Makefile
 - Domain tests cover status transitions, workspace boundaries, hierarchy cycles, tag access, and deletion decisions.
 - SQLite integration tests cover migrations, constraints, FTS synchronization, transactions, import rollback, and query performance fixtures.
 - Handler contract tests validate requests/responses against OpenAPI and shared examples. Frontend API tests consume the same examples.
-- Playwright Chromium, Firefox, and WebKit projects cover every spec user journey, responsive layouts, external-network blocking with localhost available, refresh recovery, and unsaved-edit errors. Release checks cover the latest two stable Chrome, Edge, and Firefox major versions and Safari 18 or newer.
+- Playwright Chromium, Firefox, and WebKit projects cover every spec user journey, the fresh-database workspace bootstrap, responsive layouts, external-network blocking with localhost available, refresh recovery, and unsaved-edit errors. Release checks cover the latest two stable Chrome, Edge, and Firefox major versions and Safari 18 or newer.
 - Container smoke tests verify non-root startup, health, migration, persistent-volume restart, static shell, API, and log redaction.
 
 ## Implementation Phases
@@ -177,18 +185,22 @@ Research decisions are captured in [research.md](./research.md), including offli
 2. Commit OpenAPI, export schema, and note-content grammar before handlers and clients.
 3. Implement SQLite migration runner and schema from [data-model.md](./data-model.md).
 4. Establish API envelope, request IDs, structured redacted logging, health/readiness, and contract-test harness.
-5. Establish SvelteKit shell, service worker, API client boundary, error handling, and responsive navigation.
+5. Establish SvelteKit shell, service worker, API client boundary, error handling, responsive navigation, workspace-list hydration, and the no-workspace setup state.
 6. Add reproducible combined container and persistent-volume smoke test.
 
 ### Phase 2 - Feature delivery sequence
 
-1. Workspaces, topics, tags, and note hierarchy.
+1. First-run workspace creation and selection, followed by notes, topics, tags, and note hierarchy.
 2. Markdown note editor and shared inline question links.
 3. Question lifecycle, answer rules, active/answered views, due dates, reminders, filters, and sorting.
 4. Cross-scope FTS search and navigation.
 5. Two-step safe note deletion.
 6. Atomic export, import validation, conflict review, and restore.
 7. Performance, offline, accessibility, security, and release verification against success criteria.
+
+### P1 capture entry gate
+
+The first capture journey starts from an empty database: load the workspace list, create a named workspace, select the returned workspace, and only then enable note creation. A missing or stale workspace selection must produce a setup CTA rather than a failed note mutation. This gate is part of US1, not an optional follow-up from the later organization story.
 
 ## Complexity Tracking
 

@@ -1,0 +1,25 @@
+services:
+  noted:
+    build:
+      context: .
+      dockerfile: containers/Containerfile
+    image: noted:local
+    ports:
+      - "8080:8080"
+    environment:
+      NOTED_ADDR: 0.0.0.0:8080
+      NOTED_DATA_DIR: /data
+      NOTED_DB_FILE: notes.db
+      NOTED_LOG_LEVEL: info
+      NOTED_IMPORT_MAX_BYTES: 268435456
+      NOTED_IMPORT_TTL: 24h
+    volumes:
+      - noted-data:/data
+    healthcheck:
+      test: ["CMD", "/noted", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  noted-data:
